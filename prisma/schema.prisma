@@ -629,6 +629,8 @@ model contacts {
   tickets              ticket[]               @relation("TicketContact")
   activityTimeline     activity[]             @relation("ActivityContact")
   tenants              tenants                @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  leads                leads[]                @relation("LeadContact")
+  tagLinks             tag_links[]            @relation("TagLinkContact")
 
   @@index([facebookId], map: "idx_contacts_facebook_id")
   @@index([instagramId], map: "idx_contacts_instagram_id")
@@ -912,6 +914,7 @@ model deals {
   tenants           tenants           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   history           deal_history[]
   activities        deal_activities[]
+  tagLinks          tag_links[]       @relation("TagLinkDeal")
 
   @@index([contactId], map: "idx_deals_contact_id")
   @@index([ownerId], map: "idx_deals_owner_id")
@@ -1341,6 +1344,7 @@ model tags {
   dealTags    deal_tags[]
   tenants     tenants         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   categoryRef tag_categories? @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  tagLinks    tag_links[]     @relation("TagLinkTag")
 
   @@unique([tenantId, name])
   @@index([categoryId], map: "idx_tags_category_id")
@@ -1419,6 +1423,8 @@ model tenants {
   properties         properties[]
   messageTemplates   messageTemplate[]
   property_visits    property_visits[]
+  leads              leads[]              @relation("LeadTenant")
+  schedules          schedules[]          @relation("ScheduleTenant")
 
   @@schema("public")
 }
@@ -1550,6 +1556,10 @@ model public_users {
   sentMessages          Message[]           @relation("MessageSenderUser")
   // back-relations
   messageTemplates      messageTemplate[]
+  ownedLeads            leads[]                 @relation("LeadOwner")
+  leadStatusChanges     lead_status_history[]   @relation("LeadStatusChangedBy")
+  leadMessages          lead_messages[]         @relation("LeadMessageAuthor")
+  schedulesCreated      schedules[]             @relation("ScheduleCreator")
 
   @@map("users")
   @@schema("public")
@@ -1752,5 +1762,119 @@ enum queue_status {
   paused
   closed
 
+  @@schema("public")
+}
+
+// =============================================================================
+// MODELOS CRM ADICIONAIS - Adicionados em 03/11/2025
+// =============================================================================
+
+/// Leads table for CRM
+model leads {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String                 @map("tenant_id") @db.Uuid
+  contactId         String?                @map("contact_id") @db.Uuid
+  name              String?
+  email             String?
+  phone             String?
+  source            String?
+  status            String?
+  stage             String?
+  score             Decimal?               @db.Decimal(10, 2)
+  ownerUserId       String?                @map("owner_user_id") @db.Uuid
+  createdAt         DateTime?              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime?              @default(now()) @map("updated_at") @db.Timestamptz(6)
+  
+  tenant            tenants                @relation("LeadTenant", fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  contact           contacts?              @relation("LeadContact", fields: [contactId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  owner             public_users?          @relation("LeadOwner", fields: [ownerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  
+  statusHistory     lead_status_history[]
+  messages          lead_messages[]
+  schedules         schedules[]
+  tagLinks          tag_links[]
+
+  @@index([tenantId], map: "idx_leads_tenant")
+  @@index([contactId], map: "idx_leads_contact")
+  @@index([ownerUserId], map: "idx_leads_owner")
+  @@index([status], map: "idx_leads_status")
+  @@index([stage], map: "idx_leads_stage")
+  @@schema("public")
+}
+
+/// Lead status change history
+model lead_status_history {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId     String        @map("lead_id") @db.Uuid
+  oldStatus  String?       @map("old_status")
+  newStatus  String?       @map("new_status")
+  changedBy  String?       @map("changed_by") @db.Uuid
+  changedAt  DateTime?     @default(now()) @map("changed_at") @db.Timestamptz(6)
+  
+  lead       leads         @relation(fields: [leadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       public_users? @relation("LeadStatusChangedBy", fields: [changedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([leadId], map: "idx_lead_status_history_lead")
+  @@index([changedAt(sort: Desc)], map: "idx_lead_status_history_changed_at")
+  @@schema("public")
+}
+
+/// Messages/notes associated with leads
+model lead_messages {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  leadId     String        @map("lead_id") @db.Uuid
+  authorId   String?       @map("author_id") @db.Uuid
+  role       String?
+  content    String?
+  createdAt  DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  lead       leads         @relation(fields: [leadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  author     public_users? @relation("LeadMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([leadId], map: "idx_lead_messages_lead")
+  @@index([createdAt(sort: Desc)], map: "idx_lead_messages_created_at")
+  @@schema("public")
+}
+
+/// Schedules for visits or callbacks
+model schedules {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String        @map("tenant_id") @db.Uuid
+  leadId     String?       @map("lead_id") @db.Uuid
+  title      String?
+  startsAt   DateTime      @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime?     @map("ends_at") @db.Timestamptz(6)
+  status     String?       @default("scheduled")
+  createdBy  String?       @map("created_by") @db.Uuid
+  createdAt  DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  tenant     tenants       @relation("ScheduleTenant", fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  lead       leads?        @relation(fields: [leadId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  creator    public_users? @relation("ScheduleCreator", fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([tenantId], map: "idx_schedules_tenant")
+  @@index([leadId], map: "idx_schedules_lead")
+  @@index([startsAt], map: "idx_schedules_starts_at")
+  @@index([status], map: "idx_schedules_status")
+  @@schema("public")
+}
+
+/// Tag links for flexible tagging of contacts, leads, and deals
+model tag_links {
+  tagId      String    @map("tag_id") @db.Uuid
+  contactId  String?   @map("contact_id") @db.Uuid
+  leadId     String?   @map("lead_id") @db.Uuid
+  dealId     String?   @map("deal_id") @db.Uuid
+  
+  tag        tags      @relation("TagLinkTag", fields: [tagId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  contact    contacts? @relation("TagLinkContact", fields: [contactId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  lead       leads?    @relation(fields: [leadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal       deals?    @relation("TagLinkDeal", fields: [dealId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([tagId, contactId, leadId, dealId])
+  @@index([tagId], map: "idx_tag_links_tag")
+  @@index([contactId], map: "idx_tag_links_contact")
+  @@index([leadId], map: "idx_tag_links_lead")
+  @@index([dealId], map: "idx_tag_links_deal")
   @@schema("public")
 }

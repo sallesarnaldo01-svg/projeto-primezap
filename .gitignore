@@ -25,3 +25,8 @@ apps/worker/src/**/*.js
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env
+.env.local
+.env.*.local

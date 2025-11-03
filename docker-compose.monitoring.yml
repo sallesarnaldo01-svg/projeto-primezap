@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # Prometheus - Coleta de métricas
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: primeflow-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - primeflow-network
+
+  # Grafana - Visualização de métricas
+  grafana:
+    image: grafana/grafana:latest
+    container_name: primeflow-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_DOMAIN=primezap.primezapia.com
+      - GF_SERVER_ROOT_URL=http://primezap.primezapia.com:3001
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - primeflow-network
+
+  # Node Exporter - Métricas do sistema
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: primeflow-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - primeflow-network
+
+  # Redis Exporter - Métricas do Redis
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: primeflow-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
+    networks:
+      - primeflow-network
+
+  # Redis - Cache
+  redis:
+    image: redis:7-alpine
+    container_name: primeflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - primeflow-network
+
+  # Postgres Exporter - Métricas do PostgreSQL
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: primeflow-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://user:password@postgres:5432/primeflow?sslmode=disable
+    networks:
+      - primeflow-network
+
+  # Alert Manager - Gerenciamento de alertas
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: primeflow-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - primeflow-network
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  redis-data:
+  alertmanager-data:
+
+networks:
+  primeflow-network:
+    driver: bridge

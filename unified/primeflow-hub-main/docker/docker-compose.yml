@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: primeflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: primeflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: primeflow-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: primeflow-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.primezapia.com`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.services.api.loadbalancer.server.port=4000"
+    env_file:
+      - ../.env
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: 2b1a9f5e0e4d43c6b8a1c9de3f762a1b6e4d8c2f9a7b3d1c5e6f7a8b9c0d1e2
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/primeflow
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://primezap.primezapia.com}
+      LOG_LEVEL: debug
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: primezap-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`primezap.primezapia.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    depends_on:
+      - api
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    container_name: primeflow-worker
+    restart: unless-stopped
+    env_file:
+      - ../.env
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/primeflow
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      LOG_LEVEL: debug
+      WHATSAPP_PROVIDER: venom
+      BROADCAST_MAX_CONCURRENCY: 3
+      BROADCAST_JITTER_PCT: 10
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+      - whatsapp_sessions:/app/.wwebjs_auth
+      - baileys_sessions:/app/.baileys-auth
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+  whatsapp_sessions:
+  baileys_sessions:

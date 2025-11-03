@@ -1,0 +1,29 @@
+FROM node:20-alpine AS base
+RUN apk add --no-cache git python3 make g++ \
+    && corepack enable && corepack prepare pnpm@latest --activate
+
+FROM base AS builder
+WORKDIR /app
+COPY . .
+RUN pnpm install --no-frozen-lockfile
+# Build shared workspace package to ensure dist is available at runtime
+RUN pnpm -r --filter "@primeflow/shared" run build
+RUN pnpm prisma generate
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api ./apps/api
+COPY --from=builder /app/apps/worker ./apps/worker
+COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/package.json ./
+
+RUN mkdir -p /app/uploads
+
+EXPOSE 4000
+# Start API via tsx directly from source
+CMD ["pnpm", "exec", "tsx", "apps/api/src/index.ts"]

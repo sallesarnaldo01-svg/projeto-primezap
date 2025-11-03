@@ -1,0 +1,2 @@
+[13:40:40] create-patch.sh não encontrado em /tmp/primeflow_patch_extract/zip_6/primeflow-hub-main; gerando tar direto
+mkdir: cannot create directory ‘/tmp/primeflow_patch_extract/zip_6/primeflow-hub-main/patches/v2.2.0’: Permission denied

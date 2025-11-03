@@ -1,0 +1,2 @@
+[13:40:17] create-patch.sh não encontrado em /tmp/primeflow_patch_extract/zip_6/primeflow-hub-main; gerando tar direto
+bash: line 32: /tmp/primeflow_patch_extract/zip_6/primeflow-hub-main/patches/v2.2.0/checksum.md5: No such file or directory

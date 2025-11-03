@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9.9.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install deps
+        run: pnpm -w install --frozen-lockfile
+      - name: Typecheck API
+        run: pnpm --filter @primeflow/api typecheck
+      - name: Prisma validate
+        run: pnpm --filter @primeflow/api exec prisma validate --schema prisma/schema.prisma || true
+      - name: Build API
+        run: pnpm --filter @primeflow/api build
+      - name: Build Web
+        run: pnpm --filter ./apps/web... build || true

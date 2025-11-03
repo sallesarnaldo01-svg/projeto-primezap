@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/api",
+    "rootDir": "./apps/api/src",
+    "baseUrl": ".",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@primeflow/shared": ["./packages/shared/src/index.ts"],
+      "@primeflow/shared/*": ["./packages/shared/src/*"],
+      "@api/*": ["./apps/api/src/*"],
+      "@config/*": ["./apps/api/src/config/*"]
+    }
+  },
+  "include": ["apps/api/src/**/*", "packages/shared/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

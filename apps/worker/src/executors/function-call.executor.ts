@@ -1,0 +1,60 @@
+import { logger } from '../lib/logger.js';
+import { prisma } from '../lib/prisma.js';
+
+interface FunctionCallParams {
+  tenantId: string;
+  toolName: string;
+  parameters: Record<string, any>;
+}
+
+export class FunctionCallExecutor {
+  async execute({ tenantId, toolName, parameters }: FunctionCallParams): Promise<any> {
+    try {
+      logger.info({ toolName, parameters }, 'Executing function call');
+
+      // Buscar a ferramenta no banco
+      const tool = await prisma.ai_tools.findFirst({
+        where: {
+          tenantId,
+          name: toolName,
+          active: true
+        }
+      });
+
+      if (!tool) {
+        throw new Error(`Tool ${toolName} not found or inactive`);
+      }
+
+      // Executar a chamada HTTP
+      const response = await fetch(tool.endpoint, {
+        method: tool.method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(tool.headers as any || {})
+        },
+        body: tool.method !== 'GET' ? JSON.stringify(parameters) : undefined
+      });
+
+      if (!response.ok) {
+        throw new Error(`Tool execution failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      logger.info({ toolName, result }, 'Function call executed successfully');
+
+      return {
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      logger.error({ error, toolName }, 'Function call execution failed');
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+}
+
+export const functionCallExecutor = new FunctionCallExecutor();

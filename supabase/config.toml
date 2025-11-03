@@ -1,0 +1,13 @@
+project_id = "pkcvpdbnygcgbgvdqton"
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.ai-function-call]
+verify_jwt = true
+
+[functions.rag-search]
+verify_jwt = true
+
+[functions.ai-property-description]
+verify_jwt = true

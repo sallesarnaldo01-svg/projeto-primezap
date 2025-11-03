@@ -1,0 +1,9 @@
+services:
+  api:
+    environment:
+      # Força uso do Postgres local até a conectividade com Supabase (5432) estar liberada
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/primeflow
+  worker:
+    environment:
+      # Força uso do Postgres local para estabilizar filas/QR
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/primeflow

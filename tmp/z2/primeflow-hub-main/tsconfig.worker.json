@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/worker",
+    "rootDir": "./apps/worker/src",
+    "baseUrl": ".",
+    "paths": {
+      "@primeflow/shared": ["./packages/shared/src"]
+    }
+  },
+  "include": ["apps/worker/src/**/*", "packages/shared/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

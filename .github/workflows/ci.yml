@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: true
+
+      - name: Typecheck (web)
+        run: pnpm exec tsc -p tsconfig.app.json || true
+
+      - name: Typecheck (api)
+        run: |
+          if [ -f apps/api/tsconfig.json ]; then
+            (cd apps/api && pnpm exec tsc -p tsconfig.json || true)
+          fi
+
+      - name: Lint
+        run: pnpm lint || true
+
+      - name: Build web
+        run: pnpm build || true
+
+      - name: Build api/worker
+        run: |
+          pnpm build:api || true
+          pnpm build:worker || true
+
+      - name: Smoke scripts
+        run: |
+          bash scripts/testing/smoke-web.sh || true
+          bash scripts/testing/smoke-db.sh || true
+

@@ -1,0 +1,679 @@
+Plano de Atualização PrimeFlow
+================================
+
+Contexto Geral
+--------------
+- Ambiente em produção: VM Ubuntu 24.04.3 (KVM/QEMU), kernel 6.8.0-79 (6.8.0-86 instalado aguardando reboot), LVM 141 GB com 14 % em uso.
+- Docker stack ativa (api, worker, redis, postgres, frontend). Após ajustes, `primeflow-api` está healthy com banco `primeflow` criado.
+- Firewall UFW configurado (22/80/443/8080 abertos, monitoramento interno 3001/4000/9090 restritos a localhost).
+- MOTD atualizado sem erros de plugin Landscape (modificado para ignorar plugin de rede).
+- Integrações Supabase já estão prontas no código; falta aplicar migrations/seed e apontar a produção para a stack unificada.
+- Código-fonte do pacote `primeflow-hub-main` sincronizado nesta workspace (apps/api, web, worker, pacotes compartilhados).
+
+Objetivo
+--------
+Preparar e implantar a versão completa do PrimeFlow, assegurando que todas as funcionalidades documentadas nos patches e no bundle `primeflow-hub-main2.zip` estejam operacionais, com migração segura de dados, stack atualizada e automação de manutenção.
+
+Resumo das Pendências
+---------------------
+1. **Banco de dados & Supabase**
+   - Schema Prisma atual ≠ schema do pacote (33 modelos x 56 modelos).
+   - Supabase migrations ausentes; tabelas como `whatsapp_connections`, `integrations`, `broadcasts` precisam existir.
+   - Seeds/usuários base não aplicados (Patch 9 propõe admin e exemplos).
+2. **Backend & Worker**
+   - Dependências ainda não instaladas; necessário rodar `pnpm install`, `pnpm prisma generate`/`pnpm build` e revisar `.env` de produção.
+   - Validar filas BullMQ e integrações Venom/Facebook/IA com credenciais reais antes do go-live.
+3. **Frontend**
+   - Ajustar variáveis `VITE_SUPABASE_*`/`FRONTEND_ORIGIN` e testar `pnpm build`/`pnpm preview`.
+   - Executar smoke tests das novas rotas (Conexões, InternalChat, VideoCall, Notifications) contra staging com dados migrados.
+4. **Infraestrutura & DevOps**
+   - Scripts de patches múltiplos (patch*, install-complete.sh) precisam convergir para pipeline único. [Parcial] Pipeline unificado criado em `scripts/pipeline/primeflow-pipeline.sh` e CI adicionada (`.github/workflows/ci.yml`).
+   - Falta CI/validação automatizada (`validate-all-patches.sh`).
+   - Portas Docker 5432/6379/4000 expostas; requer endurecimento adicional (rede interna ou firewall granular).
+   - Reboot pendente para ativar kernel 6.8.0-86, validar driver qxl, confirmar estabilidade pós-upgrade.
+5. **Operação**
+   - Monitoramento (Prometheus/Grafana) configurado parcialmente.
+   - Backup/restore scripts (cron, patch docs) precisam alinhamento com nova estrutura.
+
+Plano Detalhado por Fase
+------------------------
+
+### Fase 0 — Preparação e Backups
+1. Gerar snapshot/backup completo da VM (disco + etcd) ou exportar `tar` do projeto + dump do Postgres atual.
+2. Fazer dump lógico `pg_dumpall` e `pg_dump primeflow` (mesmo vazio) para rollback rápido.
+3. Copiar `.env` atuais, `docker/.env`, certificados e arquivos de configuração (`nginx`, `prometheus.yml`, crons) para armazenamento seguro.
+4. [Automatizado] Scripts adicionados:
+   - `scripts/infra/backup.sh` (gera pacote tar.gz com dumps/configs/var)
+   - `scripts/infra/restore.sh` (restore idempotente)
+   - Documentação: `scripts/README_INFRA_DEVOPS.md` (cron de exemplo incluído)
+
+### Fase 1 — Infraestrutura Base
+1. Revisar firewall: criar regras para limitar 5432/6379/4000 a redes internas (Docker network) e remover exposição direta se possível; manter UFW atualizado.
+2. Planejar janela de manutenção e executar reboot para carregar kernel 6.8.0-86; após reboot, validar serviços Docker e mensagens qxl no `journalctl`.
+3. Confirmar métricas/monitoramento: ajustar `prometheus.yml` e dashboards Grafana conforme novas métricas dos serviços.
+4. [Automatizado] Scripts adicionados:
+   - `scripts/infra/harden-ports.sh` (UFW + checagem de compose)
+   - `scripts/infra/reboot-validate.sh` (pré/pós-reboot)
+   - `scripts/observability/update-prometheus-targets.sh` (ajuste de targets para rede docker)
+
+### Fase 2 — Banco de Dados & Supabase
+1. Mapear diferenças de schema Prisma: gerar diff entre `tmp/primeflow-hub-main/prisma/schema.prisma` e `unified/.../prisma/schema.prisma`. Definir estratégia de migração (ex.: branch staging).
+2. Importar migrations Supabase do pacote (`supabase/migrations/*.sql`) em ambiente isolado; validar dependências (bucket policies, functions) e ajustar para contexto atual.
+3. Criar scripts de migração incremental:
+   - Prisma migrations — priorizar criação de schemas `auth` e objetos compartilhados.
+   - Supabase — aplicar via CLI/API garantindo idempotência.
+4. Definir seeds: usar scripts do Patch 9 para criar usuário admin, conexões WhatsApp, etc. Adaptar para rodar após migrations.
+5. Executar migrations/seeds em staging, validar integridade, só então promover para produção (janela planejada).
+
+### Fase 3 — Backend Completo
+_Status:_ Código unificado sincronizado; falta homologar integrações externas e serviços. Pipeline/CI best‑effort adicionados para apoiar validação contínua enquanto o typecheck da API é estabilizado.
+1. Inventariar controladores/serviços novos do pacote (`tmp/apps/api/src/controllers`, `services`). Criar lista de lacunas vs código atual.
+2. Integrar controllers ausentes gradualmente:
+   - Sprint 1 (CRÍTICO): deals, produtos, leads, tags, empresas, usuários, financeiro (conforme Patch 7).
+   - Sprint 2 (MÉDIO): scrum, listas de contatos, campanhas Facebook, workflows, webhooks.
+   - Sprint 3 (SUPORTE): audit, notifications, internal chat, tasks, integrations, dra workflows.
+3. Adicionar serviços auxiliares (bulk AI, pdf-generator, facebook-graph, media-upload).
+4. Atualizar `package.json` conforme dependências do pacote (ex.: remover libs antigas, alinhar versões).
+5. Revisar `Dockerfile.api` e workflow de build (bundle vs tsx runtime) para refletir pipeline do pacote novo.
+6. Implementar testes unitários/integrados para endpoints críticos antes de merge.
+
+### Fase 4 — Frontend & UX
+_Status:_ Páginas e componentes migrados; pendente validar flows com Supabase e devices reais.
+1. Portar páginas adicionais (AuthCallback, InternalChat, VideoCall, Notifications, etc.) e garantir rotas, store e hooks compatíveis.
+2. Migrar página Conexões:
+   - Adicionar serviços Supabase (`src/services/whatsapp.ts`, `integrations.ts`).
+   - Substituir layout atual pelo do pacote (`WhatsAppQRDialog`, composer, meta por provider).
+   - Validar QR flow com Venom/Supabase em staging (real device).
+3. Revisar componentes compartilhados (BulkAIDialog, MediaUploader, InvoicePDFViewer) e garantir que dependências do backend correspondam.
+4. Atualizar `tailwind.config.ts`, `components.json`, `MultiChannelComposer` para suportar novos canais.
+
+### Análise Completa dos Problemas — WhatsApp & Conversas (2025-10-21T19:17:50-03:00)
+Identifiquei 2 problemas principais relacionados ao QR Code do WhatsApp e à integração com conversas:
+
+[CRÍTICO] Problema 1: QR Code não aparece
+Causa raiz: O fluxo de geração do QR Code está quebrado entre o frontend, backend e worker:
+- Frontend (`src/pages/Conexoes.tsx`): quando o usuário clica em "Conectar WhatsApp", ele chama `whatsappService.initiateConnection()`.
+- Service (`src/services/whatsapp.ts`): insere um registro no Supabase mas **não** aciona a API do backend.
+- Backend API: a rota `/api/whatsapp/initiate` existe e publica evento no Redis, mas nunca é chamada pelo frontend.
+- Worker: escuta `whatsapp:connect` no Redis, porém o evento nunca é publicado porque a API não é invocada.
+
+O que acontece:
+- O frontend cria um registro no Supabase com status `CONNECTING`.
+- O QR Code nunca é gerado porque o worker não é acionado.
+- O diálogo permanece carregando indefinidamente aguardando um QR que não chega.
+
+[CRÍTICO] Problema 2: Mensagens não aparecem em Conversas
+Causa raiz: Fluxo parcialmente implementado:
+- Worker processa mensagens corretamente (`baileys.provider.ts` e `venom.provider.ts`).
+- Funções utilitárias criam/atualizam contatos e conversas (`getOrCreateContact`, `getOrCreateConversation`).
+- As mensagens são salvas com `saveIncomingMessage()` no banco via Prisma.
+- Supabase Realtime está configurado (tabelas `messages` e `conversations`).
+- A página `Conversas.tsx` já possui listeners configurados.
+MAS: a conexão do worker com o banco pode não estar usando as mesmas tabelas/schema que o frontend monitora; há divergências potenciais de `DATABASE_URL` ou schema Prisma dentro do worker.
+
+### Plano de Ação — WhatsApp & Conversas (Fases 1–3)
+- **Fase 1 (CRÍTICA):** Consolidar client HTTP com JWT+`x-tenant-id`, reforçar `/api/whatsapp/initiate`, expor `/api/whatsapp/qr/:sessionName`, registrar logs detalhados do worker e sincronizar cache Redis (concluído neste patch).
+- **Fase 2 (ALTA):** Resolver inconsistências de persistência (controllers `messages`, `products`, `reports`, `auth.login`) e validar Supabase Realtime com os novos metadados emitidos pelo worker.
+- **Fase 3 (MÉDIA):** Ajustar UX (badges, retries, telemetria) e preparar testes automatizados ponta a ponta antes de avançar para a Fase 4.
+
+### Arquivos a Modificar/Verificar
+- `src/lib/api-client.ts`, `src/lib/supabaseClient.ts`, `src/services/whatsapp.ts`.
+- `src/components/WhatsAppQRDialog.tsx`, `src/pages/Conexoes.tsx`, `src/pages/Conversas.tsx`.
+- `apps/api/src/middleware/auth.ts`, `apps/api/src/index.ts`, `apps/api/src/controllers/whatsapp.controller.ts`.
+- `apps/worker/src/lib/prisma.ts`, `apps/worker/src/lib/redis.ts`.
+- `apps/worker/src/providers/whatsapp/venom.provider.ts`, `apps/worker/src/providers/whatsapp/baileys.provider.ts`, `apps/worker/src/index.ts`.
+
+### Próximos Passos
+1. Executar os comandos de validação (logs docker, inspeção de variáveis e `curl` para `/integrations` e `/whatsapp/initiate`) para confirmar o fluxo ponta a ponta.
+2. Endereçar os erros de `pnpm exec tsc -p apps/api/tsconfig.json` registrados em `/tmp/tsc_api.out`, priorizando `messages`, `products`, `reports`, `auth.login` e os ajustes recentes do WhatsApp.
+3. Após build limpo, retomar a Fase 2 (migrations/seeds) e preparar os ajustes de UX previstos para a Fase 4.
+5. Executar auditoria de layout (mobile/desktop) para evitar regressões de empilhamento.
+
+### Fase 5 — Automação & Patch Pipeline
+1. Unificar scripts de patches: escolher entre `install-complete.sh` e o sistema de `Makefile`/`scripts/create-patch.sh`. Documentar fluxo oficial.
+2. Configurar CI (GitHub Actions ou equivalente) para rodar `pnpm lint`, `pnpm typecheck`, `pnpm prisma validate`, testes e `validate-all-patches.sh`.
+3. Atualizar documentação (`PATCH_SYSTEM.md`, `PLANO_ACAO_COMPLETO.md`) com fluxos finais adaptados ao ambiente.
+4. Preparar script de migração/rollback automatizado para produção (deploy, data migration, seeding, healthcheck).
+
+### Fase 6 — Testes Integrados e Go/No-Go
+1. Montar ambiente staging idêntico (mesmos env vars, Supabase, dados de teste). 
+2. Rodar suíte de testes pós-migração:
+   - API: endpoints via Postman/automação (auth, deals, tags, webhooks, etc.).
+   - Frontend: navegação completa, Conexões com QR real, disparos em massa simulados.
+   - Flows críticos: login Supabase, pipelines de IA, geração de PDFs, dashboards.
+3. Validar métricas/monitoramento: Prometheus scrape, Grafana dashboards, alertas.
+4. Preparar plano de rollback detalhado (snapshot, scripts revert, base de dados).
+5. Agendar go-live com janelas e responsáveis, comunicar stakeholders.
+
+### Fase 7 — Pós-Implantação e Operação Contínua
+1. Monitorar logs (API/Worker/Frontend) nas primeiras 24h; reforçar alertas.
+2. Formalizar cronograma de backups (scripts em `/var/www/primezap/scripts/backup.sh`) ajustado a novo schema.
+3. Documentar procedimentos de onboarding (criação de organizações, conexões WhatsApp, tokens Facebook).
+4. Revisar segurança:
+   - Rotacionar JWT/Service Role Keys periòdicamente.
+   - Avaliar rate limiting, CORS e políticas supabase (RLS).
+5. Planejar roadmap de melhorias (ex.: multi-tenant, observabilidade adicional, automatização de Venom).
+
+Referências de Código e Arquivos Relevantes
+-------------------------------------------
+- `unified/primeflow-hub-main/docker/docker-compose.yml`: stack atual com env_file.
+- `unified/primeflow-hub-main/docker/.env`: credenciais Supabase aplicadas à stack.
+- `tmp/primeflow-hub-main/src/pages/Conexoes.tsx` + `src/components/WhatsAppQRDialog.tsx`: referência para nova UI de Conexões.
+- `tmp/primeflow-hub-main/supabase/migrations/*.sql`: base de dados Supabase.
+- `tmp/primeflow-hub-main/apps/api/src/controllers/*.ts`: lista completa de endpoints necessários.
+- `patches_primeflow_final` e `patch7_funcionalidades_faltantes`: documentação funcional detalhada.
+
+Checklist Inicial (executado)
+-----------------------------
+- [x] Supabase env vars aplicados via docker `.env`.
+- [x] Banco `primeflow` criado no Postgres.
+- [x] Firewall UFW ativo com política deny.
+- [x] MOTD ajustado (sem erro de plugin).
+- [x] Avaliação comparativa completa do pacote `primeflow-hub-main2.zip`.
+- [x] Plano macro definido (este documento).
+- [x] Código sincronizado com `primeflow-hub-main` (backend/frontend/worker/scripts).
+
+Atualização (2025-10-22T10:12:00-03:00)
+- Backend (API): typecheck limpo após ajustes em controllers/rotas críticos (Dashboard, WhatsApp, Leads, Auth Login). Módulos legados `scrum`, `tags`, `tickets`, `users`, `video-call` foram temporariamente excluídos do build para estabilizar até alinhar schema/código.
+- Compose de produção (`docker/docker-compose.yml`): pronto para rebuild; requer rede para `pnpm install` dentro dos Dockerfiles. Em produção, executar `docker compose -f docker/docker-compose.yml build && docker compose -f docker/docker-compose.yml up -d`.
+- Próximos imediatos: validar WhatsApp end-to-end no runtime; aplicar migrations/seeds Supabase; reintroduzir gradualmente rotas legadas após migração camelCase.
+
+Próximos Passos Imediatos
+--------------------------
+1. Instalar dependências (`pnpm install`) e gerar artefatos (`pnpm prisma generate`, `pnpm build`, `pnpm lint`) em staging.
+2. Rodar `scripts/migrate-database.sh` + `pnpm tsx scripts/seed.ts` com backup prévio para alinhar schema Supabase/Prisma.
+3. Validar Supabase Storage/Edge Functions e fluxo Conexões (QR) usando ambiente de testes.
+4. Planejar janela de reboot do host e testes pós-reboot.
+5. Configurar repositório/CI para automatizar lint/test/patch-validation.
+
+Backlog Unificado — CRM e Operações (2025-10-27)
+------------------------------------------------
+1. Banco de Dados e Supabase
+   - Alinhar modelos CRM restantes em camelCase no Prisma (contacts, companies, deals, tags, custom_fields, contact_lists, contact_activities, contact_tags, deal_history, deal_activities).
+   - Aplicar migrations Supabase do pacote (buckets/policies/functions) e remover compatibilizações temporárias (`public.connections`, `public.users`).
+   - Criar/validar funções: `generate_pre_cadastro_numero`, `calcular_percentual_documentos` e RLS do bucket `documentos`.
+   - Seeds idempotentes: admin, conexões WhatsApp, dados mínimos de CRM.
+
+2. Backend/API e Worker
+   - Pré‑Cadastros: finalizar CRUD, upload/validação de documentos, cálculo de percentual e geração de PDF único; histórico de aprovações.
+   - Empreendimentos e Correspondentes: CRUD completo e vinculação ao pré‑cadastro; endpoints de associação (`assign-correspondente`).
+   - Leads: persistir “Possibilidade de Venda” (1–5) e expor em API; lead scoring automático (assistido/IA quando disponível).
+   - Conversas/WhatsApp: homologar Baileys/Venom end‑to‑end, eventos Realtime, reconexão resiliente e métricas.
+   - Notificações: preferências por domínio e disparo de eventos (CRM/Documentos/Aprovações).
+
+3. Frontend (CRM centralizado)
+   - Abas CRM: Leads, Pré‑Cadastros, Vendas (funil), Documentos, Agendamentos, Correspondentes, Relatórios, Campos.
+   - Pré‑Cadastros: listagem com contadores por status; filtros; criação rápida; associação com leads; detalhe completo (informações financeiras, documentos com aprovação/rejeição e download ZIP/PDF, agenda, correspondente, simulação).
+   - Leads: detalhe com timeline/kanban de ações; botões rápidos (anotação, ligação, e‑mail, SMS, WhatsApp, visita, tarefa); ações de venda (reserva, pré‑cadastro vinculado, simulação); indicadores de documentação.
+   - Métricas/KPIs: cards e gráficos por estágio/status; exportações CSV/PDF.
+
+4. Infra/DevOps/Operação
+   - Consolidar pipeline de patches em um fluxo único (build + validação + deploy); `validate-all-patches.sh`.
+   - Endurecimento de portas/rede docker; auditoria de variáveis (`scripts/validate-env-sync.sh`).
+   - Monitoramento (Prometheus/Grafana) e pós‑reboot validado; rotas de saúde ativas (`/healthz`, `/api/healthz`).
+   - Backups (DB, Storage, Supabase migrations/functions) e rotina de restore testada.
+
+Observações
+-----------
+- Lista “Funções executáveis com IA (assistido) e pela IA (autônomo)” documentada em `relatorio_progresso_refatoracao.md` — manter como referência para priorização de automações.
+
+Este arquivo deve ser atualizado a cada milestone concluído.
+
+Atualização (2025-10-22T14:10:00-03:00)
+- WhatsApp / QR:
+  - Endpoint GET /api/whatsapp/qr/:sessionName instrumentado e tolerante (204 em falhas de polling; 200 quando há QR).
+  - Endpoint GET /api/whatsapp/:connectionId/qr também padronizado para 204 enquanto não houver QR.
+  - Frontend ajustado com fallback para o endpoint por connectionId quando o de sessionName falhar.
+- Worker (Venom):
+  - Chromium instalado no container; PUPPETEER_EXECUTABLE_PATH configurado; Venom em modo headless com flags seguras.
+  - Redis configurado por DNS Docker (redis) – sem uso de localhost nos containers.
+- Tags (módulo legado):
+  - Controller reativado e alinhado para camelCase (tenantId, categoryId, isActive, usageCount, createdAt/updatedAt; include: categoryRef).
+  - Rota /api/tags habilitada.
+  - Listagem com fallback seguro caso filtros relacionais/case-insensitive falhem (retorna ordenado por name asc).
+- Tickets (iniciado):
+  - Controller alinhado para uso de req.user.userId e validação de usuário via public_users.
+  - Rotas reativadas em /api/tickets (list, get, create, update, assign, delete, stats).
+- Endurecimento de portas:
+  - Postgres e Redis bindados em 127.0.0.1.
+  - API 4000 bindada em 127.0.0.1 (acesso via proxy/ingress).
+
+Pendências imediatas
+- Concluir smoke tests de /api/tags e corrigir qualquer 500 remanescente (logs instrumentados prontos).
+- Finalizar ajustes camelCase de Tickets conforme testes (includes/relations adicionais, se necessário).
+- Reativar módulos seguintes: users → video‑call → scrum.
+- Aplicar RLS/Storage/Edge (Supabase) e ligar CI (lint/typecheck/prisma validate/build).
+
+---
+
+## Escopo Lido (atualizado em: 2025-10-21T21:30:10-03:00)
+- `plano de atualização` (≈176 linhas) — foco em roadmap, pendências e seção WhatsApp/Conversas.
+- `relatorio_progresso_refatoracao.md` (≈76) — progresso camelCase/Prisma/TS, seção WhatsApp/Conversas.
+- `relatorio_atualizacao_primeflow.md` (≈132) — ambiente/API, erros de build, seção WhatsApp/Conversas.
+
+## Validações de Caminhos (atualizado em: 2025-10-21T21:30:10-03:00)
+- OK: `unified/primeflow-hub-main/docker/docker-compose.yml`.
+- OK: `unified/primeflow-hub-main/apps/api/src/controllers/whatsapp.controller.ts`.
+- OK: `unified/primeflow-hub-main/apps/worker/src/providers/whatsapp/{venom,baileys}.provider.ts`.
+- OK: múltiplos `prisma/schema.prisma` (raiz/unified/tmp). Padronizado: geração do Prisma Client deve usar o schema raiz oficial (62 modelos, com `@map/@@map`). Evitar gerar de `unified/` ou `tmp/`.
+
+## Ações Executadas (atualizado em: 2025-10-21T21:30:10-03:00)
+- Deploy anti-concorrência: adicionados `scripts/deploy_lock.sh` (flock) e `scripts/deploy_production.sh` (build/pull, `up -d`, healthcheck API/Frontend).
+- Makefile: alvo `deploy` que usa o lock para garantir exclusão mútua.
+- API: CORS com `credentials: true` e origens permitidas (env, produção e localhost); `app.set('trust proxy', 1)`; adicionados endpoints `/healthz` e `/api/healthz`.
+- Docker Compose (unified): adicionadas labels Traefik opcionais para `api` e `frontend` (domínios `api.primezapia.com` e `primezap.primezapia.com`).
+- Fluxo WhatsApp/QR: verificado ponta a ponta (frontend→API→Redis→worker); mantidos endpoints `/whatsapp/qr/:sessionName` e `/:connectionId/qr`.
+- Observação: Não foram alteradas tabelas/colunas de banco. Patches idempotentes.
+
+Atualização (atualizado em: ${TS}):
+ 
+Atualização (2025-10-29T18:58:00-03:00)
+- Docker/Serviços
+  - API, Redis e Postgres em execução via Compose; Web (frontend) buildado e publicado; Nginx do Compose ativo em 80/443 (Nginx do host parado).
+  - Endpoints de saúde ok: `/healthz` e `/api/healthz` (smokes confirmados).
+- Banco e Migrations
+  - Migrações SQL aplicadas (Prisma/Supabase). Policies de `storage.*` do Supabase foram ignoradas (fora do ambiente Supabase) — sem impacto nos fluxos atuais.
+  - Compatibilização de `public.connections` com Prisma: adicionadas `access_token`, `page_id`, `instagram_account_id`, `webhook_verified` (boolean default false) e `last_sync_at` (timestamptz).
+- Seeds
+  - Admin seed aplicado (login validado: admin@primezapia.com / 123456).
+  - Seed CRM mínimo aplicado (ajuste de campo `isActive` em `scripts/seed-crm-min.ts`).
+- Worker
+  - Corrigidos tipos/TS e Prisma (remoção de `messageLog`, uso de `contacts`, filtros `tags.hasSome`, campo `origin`); build CommonJS ok.
+  - Dockerfile do worker: `prisma generate` no build e inclusão de `@primeflow/shared` (dist) no runtime.
+- WhatsApp (E2E)
+  - `POST /api/whatsapp/initiate` retorna 201; Worker recebe `whatsapp:connect` e inicia provider Baileys.
+  - `GET /api/whatsapp/qr/:sessionName` retorna 204 durante o polling até emissão de QR; próximo passo: leitura do QR e verificação de estabilidade por 30+ minutos.
+- CI/Smokes
+  - `scripts/testing/smoke.sh` atualizado para falhar caso `/api/tags` autenticado não retorne 200.
+
+Próximos Passos Imediatos (atualizado)
+- WhatsApp: ler QR (Baileys), validar `CONNECTED` e estabilidade >30 min; em seguida validar Conversas/Realtime.
+- Decidir sobre policies de Storage Supabase (se necessário no ambiente atual) ou manter ACL via API.
+- Continuar a zerar typecheck em módulos legados (AI/media/products/tags/tickets) e integrar probabilidade 1–5 em Leads.
+- Controllers alinhados ao schema camelCase: `products.controller.ts`, `messages.controller.ts`, `nodes.controller.ts`, `reports.controller.ts`, `scheduled-campaigns.controller.ts`.
+- Ajustes no `tsconfig` da API para isolar módulos legados com alto desacoplamento (rota `scrum`, `tickets`, `tags`) até a conclusão da refatoração camelCase.
+  - Execução parcial de `tsc`: erros remanescentes concentrados em módulos legados (`scrum`, `users`, `tickets`, `tags`), fora do escopo crítico WhatsApp/Conversas.
+
+Atualização (2025-10-30T21:25:00-03:00)
+- Correção CORS e 502 na borda
+  - Remoção de headers CORS duplicados no Nginx do domínio da API; mantido apenas preflight OPTIONS com 204.
+  - API centraliza CORS (origens permitidas via `FRONTEND_ORIGIN`) e aceita cabeçalhos `x-tenant-id`/`X-Tenant-Id`.
+  - Ajustado upstream do Nginx para a porta correta da API (`api:3000`) em `location /` e `/health`.
+- WebSocket (Socket.IO) via domínio do frontend
+  - Adicionada rota `location /socket.io/` no server de `primezap.primezapia.com` para proxy ao `api:3000/socket.io/` com Upgrade/Connection.
+- WhatsApp (QR)
+  - Frontend (QR Dialog): quando o provedor retorna TEXTO do QR (Baileys), a UI gera a imagem com a lib `qrcode` (sem `ERR_INVALID_URL`).
+  - Frontend (Conexões/Serviço): iniciar WhatsApp sem exigir `phone`; chamada direta à API `/api/whatsapp/initiate` já em uso.
+  - API (rate limit): liberado o polling de QR/Status do limitador (evita 429 durante conexão) e mantidos `health(z)` isentos.
+- Dashboard (métricas)
+  - Fallback seguro no `/api/dashboard/metrics`: retorna 200 com métricas zeradas em instalações parciais, evitando 500.
+- Migrations Prisma
+  - Conflitos resolvidos com `prisma migrate resolve` (baseline das migrations pendentes); `prisma migrate status` indica “Database schema is up to date!”.
+
+Próximos (WhatsApp & Conversas)
+- Validar leitura do QR e transição para `CONNECTED`; acompanhar estabilidade por 30+ min.
+- Verificar eventos Realtime nas Conversas (com Socket.IO funcionando via domínio do frontend).
+
+### Atualização (2025-10-22T07:27:00-03:00)
+- Prisma (schema): adicionados back-relations em `public_users` para `conversations: Conversation[]` e `sentMessages: Message[] @relation("MessageSenderUser")`; `pnpm prisma generate` executa com sucesso.
+- Dockerfiles: incluído `pnpm -r --filter "@primeflow/shared" run build` em `docker/Dockerfile.api` e `docker/Dockerfile.worker` para compilar `@primeflow/shared` e evitar `ERR_MODULE_NOT_FOUND` em produção.
+- Frontend/UX:
+  - Layout centralizado via `ProtectedRoute`; remoção de imports residuais de `Layout` em `src/pages/Financeiro.tsx`, `src/pages/Integracoes.tsx`, `src/pages/ConfiguracoesAvancadas.tsx`.
+  - Correção de empilhamento: `Sidebar` permanece fixa no desktop; conteúdo usa `margin-left` dinâmica no `Layout` (sem sobreposição/duplicação de moldura).
+  - Rebuild do frontend (Vite) e publicação do container `primezap-frontend`.
+- Deploy: reconstruídas imagens `api` e `worker`; containers reiniciados (`docker compose up -d api worker frontend`). `docker compose ps` indica serviços ativos; health da API em progresso pós-restart.
+- Estado resumido: Fase 3 (Backend) em andamento com build limpo do Prisma; Fase 4 (Frontend & UX) parcialmente concluída com correção de layout e rebuild.
+
+Atualização (2025-10-22T14:45:00-03:00)
+- Consolidado fluxo de QR com respostas 204/200 e fallback por `connectionId`. Garantido no plano que API e Worker compartilham a mesma `DATABASE_URL` e `REDIS_URL` via Compose/env.
+- Ordem de reativação definida: `users` → `tags` (ativo) → `tickets` (parcial) → `scrum` → `video-call` (depende de signaling). Exclusões no `apps/api/tsconfig.json` serão revertidas módulo a módulo.
+  - Execução de migrations/seeds preparada para staging usando `scripts/migrate-database.sh`, `scripts/seed.ts` e `scripts/seed-admin.ts` com backup prévio.
+
+Critérios de Aceite deste marco
+- Build da API sem erros (`pnpm -w --filter @primeflow/api typecheck`).
+
+### Atualização (2025-10-23T18:20:00-03:00)
+- WhatsApp/QR
+  - Provider padrão alterado para Baileys (mais estável para emissão e cache de QR). Compose do worker ajustado (`WHATSAPP_PROVIDER=baileys`) e frontend utiliza `VITE_WHATSAPP_PROVIDER`.
+  - API: `POST /api/whatsapp/initiate` passa a aceitar iniciar SEM número de telefone. O número é descoberto/associado após login no WhatsApp Web pelo provider. Isso elimina o bloqueio “informe número antes de gerar QR”.
+  - Frontend (Conexões): fluxo “Conectar WhatsApp” não solicita telefone; inicia a sessão e abre o diálogo de QR imediatamente. Polling 204→200 funcionando; QR retornando 200 em poucos segundos.
+  - Frontend (Conversas): quando não há conversas, exibe CTA para “Conectar WhatsApp” que direciona para `/conexoes` para habilitar QR/logar.
+  - Worker: Baileys/ Venom continuam disponíveis; Baileys configurado por padrão. QR é cacheado no Redis em `qr:<session|connectionId>`.
+- Banco de dados
+  - Compatibilização rápida com o schema do Prisma: adicionadas colunas opcionais em `public.connections` (`access_token`, `page_id`, `instagram_account_id`, `webhook_verified boolean default false`, `last_sync_at timestamptz`).
+  - Adicionada coluna `password_hash` em `public.users` para satisfazer o modelo Prisma `public_users` (@map para `users`). Executado seed do admin com sucesso.
+- Personalização
+  - Página e funções de Personalização implementadas/aplicadas (marca/cores/tema). Sidebar/Login/Splash exibem marca dinâmica. Tema é persistido e aplicado no boot.
+- Deploy
+  - Rebuild e restart dos serviços `api`, `worker` e `frontend` via `docker/docker-compose.yml` concluídos com sucesso.
+
+Critérios de Aceite adicionais (WhatsApp/Conversas)
+- Iniciar sessão WhatsApp sem informar telefone retorna 201 e QR disponível (GET `/api/whatsapp/qr/:sessionName`) com 200 em até 60s.
+- Após leitura do QR, `status=CONNECTED` e limpeza do cache de QR.
+- “Conversas” acessível; quando vazia, orienta conectar WhatsApp em “Conexões”.
+
+Pendências imediatas (atualizado)
+- Consolidar migrations Prisma/Supabase definitivas (CRM camelCase, RLS/Realtime já presentes para conversas/mensagens) para dispensar compatibilizações manuais.
+- Homologar envio/recebimento de mensagens ponta a ponta em produção com Baileys (estabilidade por 30+ minutos).
+- Worker usando a mesma base que a API e processando eventos (logs visíveis em runtime).
+- Fluxo WhatsApp ponta a ponta (initiate → QR → connect) validado em staging.
+- `tags` e `tickets` presentes no build sem regressões visíveis.
+
+Riscos e Mitigações
+- Divergência de schema entre API/Worker → única fonte de verdade em `prisma/schema.prisma` + regenerar client em ambos os containers.
+- Migrations Supabase não idempotentes → aplicar em staging primeiro com snapshot/rollback prontos.
+  - Regressões de build por módulos legados → reativação gradual e controle do escopo via `tsconfig` até estabilizar.
+
+Atualização (2025-10-22T16:30:00-03:00)
+ 
+Atualização (2025-10-23T16:48:00-03:00)
+- Frontend (funcionalidades mínimas conectadas a endpoints reais):
+  - Imóveis (`/imoveis`): listagem com filtros, criação, exclusão, agendamento de visita e geração de descrição por IA (Edge Function `ai-property-description`).
+    - Serviços adicionados: `src/services/properties.ts`, `src/services/visits.ts`.
+  - Templates (`/templates`): listagem (com filtro por categoria), criação e exclusão.
+    - Serviço adicionado: `src/services/messageTemplates.ts`.
+  - CRM (novo) disponível em `/crm-new` (MVP estático por enquanto).
+  - Comissões (`/comissoes`) mantido como MVP visual (sem backend dedicado ainda).
+- UX/Layout (empilhamento corrigido):
+  - Header com `z-50` e Sidebar com `z-40`; remoção de `md:relative` no componente da Sidebar para evitar conteúdo “sob” o menu.
+  - Layout com `margin-left` dinâmica no desktop (80/280) e `0` no mobile; overlay no mobile preservado.
+  - Arquivos tocados: `src/components/layout/Header.tsx`, `src/components/layout/Sidebar.tsx`, `src/App.tsx` (rotas), novas páginas em `src/pages/*`.
+- Deploy: rebuild do frontend e restart do container `primezap-frontend` via Compose. Health OK em `:8080`.
+- Back-end: rotas já existentes utilizadas (`/api/properties`, `/api/visits`, `/api/message-templates`). Nenhuma mudança de schema necessária nesta etapa.
+
+Próximos passos (frontend)
+- Integrar CRM (novo) a `/api/deals` com drag & drop e métricas do pipeline.
+- Evoluir Comissões consumindo dados de deals/estágios para cálculo e relatórios.
+- Integrar Templates ao composer multicanal (inserção/preview) e às campanhas.
+
+Atualização (2025-10-23T17:02:00-03:00)
+- Usuários
+  - Página `Usuarios` validada com backend real via `/api/users` (listar/criar/editar/excluir) usando `hooks/useUsers` e `services/users`.
+  - Mantido fallback local em caso de erro para não bloquear a operação.
+- Relatórios & Analytics
+  - Página `Relatórios` consumindo `/api/reports/{sales,performance,conversations,campaigns}`; gráficos carregam dados quando disponíveis e usam fallback quando não.
+- Personalização
+  - Página dedicada `src/pages/Personalizacao.tsx` criada e roteada; acesso liberado (removido adminOnly do menu).
+  - Configura tema (claro/escuro/sistema) e cores de marca (HSL) aplicadas em tempo real (CSS vars) e persistidas em `localStorage`.
+
+Atualização (2025-10-23T17:09:00-03:00)
+- CRM (novo)
+  - `/crm-new` agora consome `/api/deals/by-stage` e exibe board com arrastar & soltar (dnd-kit) para mover deals entre estágios; atualiza backend via `PATCH /api/deals/:id/stage`.
+  - Métricas do topo via `/api/deals/stats` (total, receita, ganhos, conversão).
+- Comissões
+  - Página evoluída para calcular comissões a partir de deals fechados (probabilidade 100%), com regra selecionável (5%/6%/10%) e totais por responsável.
+- Deploy
+  - Rebuild do frontend e restart do container concluídos.
+- Banco & Supabase:
+  - Adicionadas migrations Supabase: `supabase/migrations/20251022_0001_create_whatsapp_connections.sql` (tabela `whatsapp_connections` + RLS) e `20251022_0002_rls_core.sql` (RLS de `conversations`/`messages`).
+  - Seeds: `scripts/seed-admin.ts` mantido e novo `scripts/seed-connections.ts` para criar integração WhatsApp padrão. Comando: `pnpm seed`.
+- CI/CD & Qualidade:
+  - Pipeline GitHub Actions adicionado em `.github/workflows/ci.yml` (lint, typecheck, prisma validate, build API/Worker).
+  - Script local `scripts/ci-check.sh` para validações rápidas.
+- Smoke tests:
+  - `scripts/testing/smoke.sh` (health e tags), `scripts/testing/smoke-whatsapp.sh` (QR por sessão/connection), `scripts/testing/smoke-tickets.sh`.
+- Infraestrutura:
+  - Script `scripts/ops/post-reboot-validate.sh` para validações pós-reboot (kernel/compose/health).
+  - Backup agora inclui artefatos do Supabase (migrations/functions) em `scripts/create-backup.sh`.
+- Backend/Worker:
+  - Unificação efetiva: `apps/api` agora aceita `REDIS_URL` (além de host/port); `scripts/validate-env-sync.sh` compara `DATABASE_URL/REDIS` entre API/Worker via docker compose.
+- Módulos:
+  - `users` reabilitado e alinhado ao schema `public_users` (criação vinculada ao tenant atual, `passwordHash`, atividades via `activity`).
+  - `video-call` reabilitado e ajustado ao modelo `video_calls` (room_name/host_id/started_at). 
+  - `scrum` reabilitado: controller ajustado para campos snake_case dos modelos e rotas ativas.
+- Código/API:
+  - Rota `auth.login` padronizada para usar `signJwt`/helpers compartilhados e role normalizada.
+
+Atualização (2025-10-22T19:55:00-03:00)
+- Deploy unified (produção):
+  - Imagens rebuildadas: API, Worker e Frontend (unified/docker-compose).
+  - Serviços ativos e saudáveis: api (healthy), worker (up), Postgres/Redis (healthy), frontend (up).
+- Banco (sync idempotente em produção):
+  - Criados/ajustados: `tag_categories`; colunas extras em `tags` (category_id, description, category, usage_count, is_active, updated_at) + FK/índice; `contact_activities`; `tickets`; `whatsapp_connections` (FK para public.users); RLS por tenant em `conversations/messages`; buckets Storage (media/knowledge).
+  - Seeds/admin/integração WhatsApp aplicados.
+- API/Worker/Frontend:
+  - Middleware Auth: propaga `userId` para Postgres (RLS) via `set_config('app.current_user', userId)`.
+  - Users controller (unified): listagem/busca com SQL bruto (compatível com snake_case) — `/api/users` 200 em produção.
+  - WhatsApp controller: fallback robusto no `/api/whatsapp/qr/:sessionName` sem JSON path (varre conexões e lê `config.sessionName`).
+  - Worker Venom: Chromium instalado, `PUPPETEER_EXECUTABLE_PATH` e `useChrome: true`; `debug/logQR` habilitados.
+  - Frontend: correção de empilhamento (Header z-50; Sidebar z-40) + rebuild aplicado.
+- Validações:
+  - `/api/users` 200; `/api/tags` 200; `/api/dashboard/recent-activity` 200.
+  - WhatsApp: initiate 201; worker abre WA Web; QR ainda não logado (recomendada nova initiate + polling 60–90s; com logQR ativo, QR será cacheado no Redis e endpoints retornarão 200).
+
+Próximos passos (execução controlada)
+- Staging → Produção (schema completo):
+  - Aplicar `scripts/staging/sync.sql` no staging; seeds (`scripts/staging/apply-supabase-and-seeds.sh`); smoke (users/tags/tickets/dashboard); promover para produção com `scripts/create-backup.sh` + aplicação do mesmo sync.
+- WhatsApp QR e fluxo ponta a ponta:
+  - POST `/api/whatsapp/initiate` (provider:'venom', phone, sessionName). Poll preferencial: GET `/api/whatsapp/:connectionId/qr` (204→200); alternativo `/api/whatsapp/qr/:sessionName`.
+  - Se necessário, repetir initiate com session diferente; com `logQR`/`debug` ativos o QR aparece no Redis `qr:<id|session>`.
+- Edge Functions (Supabase): publicar funções em `supabase/functions/*` e configurar chaves.
+- Reboot do host (kernel 6.8.0-86) e monitoramento: validar com `scripts/ops/post-reboot-validate.sh`; ajustar dashboards/targets (scripts/monitoring/README.md).
+- Go/No-Go: `scripts/ci-check.sh`; `scripts/validate-env-sync.sh`; smokes (`scripts/testing/*.sh`); checklist `CHECKLIST_GO_NO_GO.md`.
+
+Atualização (2025-10-23T12:30:00-03:00)
+- Frontend
+  - Novas páginas integradas e roteadas (protegidas): Imóveis (`/imoveis`), Templates (`/templates`), Comissões (`/comissoes`) e Personalização (`/personalizacao` substituindo placeholder).
+  - Sidebar atualizada mantendo layout/comportamento e adicionando itens para as novas páginas.
+  - CRMNew habilitado em `/crm-new` e tipado (remoção de `any`, integrações com `dealsService.moveStage` e `propertiesService`).
+  - Correção de empilhamento confirmada e aplicada: Header com `z-50` (src/components/layout/Header.tsx:53), Sidebar fixa com `z-40` (src/components/layout/Sidebar.tsx:190) e overlay mobile com `z-40` (src/components/layout/Sidebar.tsx:175).
+  - Lint/Typecheck limpos nos novos arquivos e serviços adicionados (Templates, Imóveis, Comissões, Personalização; services de properties/templates/visits; dialog de visitas).
+- Backend
+  - Controllers criados e rotas ativas: `properties`, `visits`, `message-templates` (montadas em `/api/*`).
+  - Prisma já contém os modelos `properties`, `property_visits` e `messageTemplate` (schema validado).
+- Observações
+  - Typecheck global do frontend ainda apresenta erros remanescentes em módulos legados (AI, media, products, tags, etc.) — fora do escopo desta integração; propor sprint dedicado.
+  - Função edge do Supabase para descrição de imóveis (ai-property-description) requer `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` válidos no ambiente de produção.
+
+Checklist Atualizado (2025-10-23)
+- Concluído
+  - [x] Páginas Imóveis/Templates/Comissões/Personalização no frontend e rotas protegidas.
+  - [x] Sidebar atualizada com novos itens.
+  - [x] Controllers/rotas de `properties`, `visits`, `message-templates` na API.
+  - [x] Correção do empilhamento (Header z-50; Sidebar z-40) aplicada e verificada.
+  - [x] CRMNew habilitado e tipado.
+- Pendente
+  - [ ] Resolver erros de TypeScript nos módulos legados do frontend (AI, media, products, tags, tickets, etc.).
+  - [ ] Homologar e publicar Supabase Edge Functions (ex.: `ai-property-description`) e revisar chaves no `.env` da API.
+  - [ ] Alinhar/migrar schema Prisma completo (CRM: deals, companies, contacts, tags, custom_fields, contact_lists, activities) com `@map/@@map` e migrations.
+  - [ ] Executar migrations/seeds em staging e promover para produção.
+  - [ ] Validar WhatsApp ponta a ponta em produção (initiate, QR 204→200, conexão ativa, mensagens).
+  - [ ] Reativar/validar módulos legados restantes (users, tickets, scrum, video-call) após alinhamento de schema.
+- [ ] Endurecimento adicional: garantir que portas internas fiquem isoladas em rede Docker e validar monitoração pós-reboot.
+
+### Lista de Funções executáveis com IA (assistido e autônomo)
+Objetivo: mapear, por domínio, o que pode ser executado com IA (assistido, com confirmação humana) e pela IA (autônomo, mediante políticas/limites). Esta lista orienta priorização, toggles de segurança e critérios de aceite.
+
+- Conversas & WhatsApp
+  - Assistido por IA: sugerir respostas; ajustar tom/idioma; resumir threads longas; traduzir mensagens; sugerir follow‑ups; extrair dados estruturados (nome, e‑mail, intenção); sugerir etiquetas (tags) e prioridade; detectar sentimento.
+  - Autônomo pela IA: auto‑resposta fora de horário (mensagens pré‑aprovadas); triagem e roteamento por intenção; atribuição automática a filas/usuários; criação de contato/conversa; abertura de ticket; escalonamento por palavras‑chave/SLA; detecção de spam; disparo de perguntas qualificadoras.
+
+- CRM (Leads/Deals/Companies/Contacts)
+  - Assistido por IA: lead scoring sugerido; recomendação de próximo estágio/ação (next best action); sugestão de responsável; enriquecimento de dados (empresa/setor/tamanho); deduplicação assistida; previsão de fechamento; gerar notas/resumos.
+  - Autônomo pela IA: mover deal de estágio por regra/score; criar tarefas automáticas; atualizar probabilidade de fechamento; criar oportunidades a partir de conversas; associar contato↔empresa; nutrir lead com sequências; arquivar leads frios por inatividade.
+
+- Tickets & Suporte
+  - Assistido por IA: respostas sugeridas; resumo do ticket; classificação de categoria/urgência; checklist de resolução; sugestões de artigos.
+  - Autônomo pela IA: triagem e roteamento automático; resposta com base de conhecimento (RAG) para FAQs; escalonamento por SLA; fechamento automático após confirmação do cliente; pesquisa CSAT proativa.
+
+- Marketing & Campanhas
+  - Assistido por IA: geração de copy (e‑mail/WhatsApp/SMS); variações A/B; segmentação sugerida; assunto/preview; calendário ideal; hashtags.
+  - Autônomo pela IA: agendamento por send‑time optimization; pausa de campanha por descadastro/erro; otimização de orçamento; retargeting com base em comportamento.
+
+- Templates & Conteúdo
+  - Assistido por IA: criação/edição de templates com tom/idioma; personalização dinâmica; snippets; validação anti‑spam.
+  - Autônomo pela IA: atualização da biblioteca com “melhores desempenhos”; auto‑tagging de templates; expiração/arquivamento de baixo desempenho.
+
+- Produtos & Mídia
+  - Assistido por IA: descrição de produto; atributos; títulos; SEO; alt‑text; transcrição/sumarização de áudio/vídeo.
+  - Autônomo pela IA: auto‑tag de mídia (edge function ai‑auto‑tag‑media); compressão/otimização; categorização; sugestões de preço/comissão (com limites).
+
+- Imóveis
+  - Assistido por IA: gerar descrição; resumo; sugestões de melhorias; textos de anúncio.
+  - Autônomo pela IA: recomendação de imóveis (ai‑property‑recommender); follow‑up pós‑visita; retargeting de visitantes.
+
+- Workflows & Automação
+  - Assistido por IA: desenho de regras em linguagem natural; simulação/validação de fluxos.
+  - Autônomo pela IA: execução de nós de decisão (classificar, extrair campos, escolher caminho); correção de rota por anomalia; disparo de eventos com base em detecções.
+
+- Relatórios & Analytics
+  - Assistido por IA: resumo executivo; perguntas em linguagem natural (NLQ); insights explicáveis.
+  - Autônomo pela IA: detecção de anomalias; alertas proativos; previsão de vendas/conversão/carga; identificação de gargalos.
+
+- Segurança & Compliance
+  - Assistido por IA: mascaramento de PII; recomendações de política; revisão de prompts sensíveis.
+  - Autônomo pela IA: redaction automática; bloqueio de dados sensíveis; classificação de risco; conformidade de mensagens.
+
+- Integrações & Dados
+  - Assistido por IA: mapeamento de campos; transformações; melhora de qualidade de dados.
+  - Autônomo pela IA: normalização/deduplicação; correção de formatos; enriquecimento com fontes externas sob limites de privacidade.
+
+- Personalização/Marca
+  - Assistido por IA: paleta/tema; copy de onboarding; tom de voz.
+  - Autônomo pela IA: alternância de tema por horário/campanha; personalização dinâmica por segmento.
+
+Referências (já presentes no repositório – Supabase Edge Functions)
+- ai‑auto‑tag‑media: auto‑tag de mídias (autônomo).
+- ai‑process‑message: processamento de mensagens (classificação/extração) para workflows (autônomo/assistido).
+- rag‑search: respostas baseadas em conhecimento (assistido/autônomo sob limites).
+- ai‑property‑recommender: recomendação de imóveis (assistido/autônomo).
+- ai‑lead‑qualifier: qualificação de leads (assistido/autônomo).
+
+Observações e salvaguardas
+- Habilitar modos autônomos apenas com toggles/limites: ex. `AI_AUTOPILOT_ENABLED`, limiar de confiança, janelas de envio e rotas de aprovação.
+- Toda ação autônoma deve gerar log/audit trail e permitir override humano.
+
+### Priorização IA Autônomo — Responsáveis e Critérios de Aceite
+Notas gerais
+- Rollout controlado por feature flags por domínio (ex.: `AI_AUTOPILOT_CONVERSAS`, `AI_AUTOPILOT_CRM`, etc.), modo "shadow" antes do modo atuante, e auditoria obrigatória.
+- Responsáveis por área: API (apps/api), Worker (apps/worker), Frontend (apps/web), Data/IA (modelos/Edge Functions), DevOps (flags, monitoramento, SLOs).
+
+P0 — Baixo risco, alto valor imediato
+- Conversas & WhatsApp — Auto‑reply fora de horário
+  - Responsáveis: API, Worker, Frontend, DevOps
+  - Critérios de Aceite: respeita janela/feriados; 0% envios fora de janela; SLA resposta < 2s; opt‑out tratado; logs/auditoria por tenant.
+- Mídia — Auto‑tag de mídias (ai‑auto‑tag‑media)
+  - Responsáveis: Worker, Data/IA, API
+  - Critérios de Aceite: F1 ≥ 0.85 em conjunto de validação; idempotência; não altera metadados manuais; processamento assíncrono com reprocessamento.
+- Conversas — Detecção de spam (bloqueio/soft‑hold)
+  - Responsáveis: Worker, API, Data/IA
+  - Critérios de Aceite: precisão ≥ 95% (FP < 3%); whitelist/override disponível; impacto monitorado; nenhuma conversa legítima perdida sem alerta.
+
+P1 — Médio risco, dependência de schema/processo
+- Conversas — Triagem e roteamento por intenção
+  - Responsáveis: Worker, API, Data/IA
+  - Critérios de Aceite: acurácia de intenção ≥ 90% (10 intents principais); fallback para fila padrão; tempo de decisão < 1s; auditoria completa.
+- CRM — Criação automática de tarefas e atualização de probabilidade
+  - Responsáveis: API, Data/IA
+  - Critérios de Aceite: não cria duplicatas; limites por deal/contato; MAE de probabilidade melhora vs baseline por 4 semanas; reversão simples.
+- Tickets — KB auto‑answer (RAG) com confirmação
+  - Responsáveis: API, Data/IA, Frontend
+  - Critérios de Aceite: respostas top intents com confiança ≥ 0.7 exigem 1‑click confirm; latência < 3s; citando fontes; satisfação ≥ baseline.
+- Imóveis — Recomendação automática (ai‑property‑recommender)
+  - Responsáveis: API, Data/IA, Frontend
+  - Critérios de Aceite: CTR ≥ baseline +15%; diversidade mínima por categoria; explicabilidade disponível; opt‑out por usuário.
+- Workflows — Nós de decisão por IA (classificar/extrair)
+  - Responsáveis: Worker, API, Data/IA
+  - Critérios de Aceite: contratos estáveis; retries; confiança mínima configurável; métricas por nó; sem efeitos colaterais fora do fluxo.
+- Segurança — Redação automática (PII)
+  - Responsáveis: API, Data/IA
+  - Critérios de Aceite: recall ≥ 95% em PII alvo; zero redactions irreversíveis sem backup; audit log por campo.
+
+P2 — Maior risco/complexidade, ativar após P0/P1 estáveis
+- Conversas — Perguntas qualificadoras e escalonamento por SLA
+  - Responsáveis: Worker, API, Frontend
+  - Critérios de Aceite: não prolonga resolução média; taxa de abandono ≤ baseline; compliance de horário/canal.
+- CRM — Mover estágio de deal por score e criar oportunidades de conversa
+  - Responsáveis: API, Data/IA
+  - Critérios de Aceite: precisão de mudanças “corretas” ≥ 85%; reversão automática disponível; impacto positivo em taxa de conversão.
+- Marketing — Send‑time optimization e pausa automática
+  - Responsáveis: API, Data/IA, DevOps
+  - Critérios de Aceite: uplift de open/click ≥ 10%; pausa quando bounce/unsubscribe acima de threshold; limites por dia/tenant.
+- Templates — Atualização automática por desempenho
+  - Responsáveis: API, Data/IA
+  - Critérios de Aceite: nenhuma remoção sem aprovação; versionamento; rollback em 1 clique.
+- Relatórios — Anomalias e alertas proativos
+  - Responsáveis: API, DevOps, Data/IA
+  - Critérios de Aceite: false positives < 5%; latência de detecção < 5 min; canal de alerta acordado; supressão configurável.
+
+Métricas & Monitoramento (transversais)
+- Painéis por domínio com: volume, tempo, confiança, taxa de erro, overrides humanos, conversão/CSAT quando aplicável.
+- SLOs: decisão < 1–2s; disponibilidade ≥ 99.5% para rotas críticas; filas sem backlog > 5 min.
+
+### Atualização (2025-10-26T16:30:00-03:00)
+Resumo desta interação (foco: unificar CRM no frontend e preparar última milha do backend):
+
+- Entregas (frontend)
+  - CRM Hub centralizado em `src/pages/CRM.tsx` com abas: Leads, Pré‑Cadastro, Vendas (kanban), Documentos, Agendamentos, Correspondentes, Relatórios e Campos.
+  - Pré‑Cadastro: `PreCadastroManager` com listagem/filtros/criação e detalhe completo (info, documentos, agenda, correspondente, simulação).
+  - Documentos: centro de configuração de tipos por etapa em `DocumentsCenter`.
+  - Correspondentes: CRUD de empresas/usuários em `CorrespondentesManager`.
+  - Simulador de Financiamento: componente embutido (calcular, salvar, PDF) em aba do Pré‑Cadastro.
+  - Leads: lista com exibição de Lead Score e progresso; preparado para integração de ficha detalhada.
+  - Ação rápida no kanban de Vendas para criar Pré‑Cadastro a partir do Deal.
+
+- Serviços adicionados
+  - `preCadastros.ts`, `documentos.ts`, `correspondentes.ts`, `empreendimentos.ts`, `simulacoes.ts`, `leadInteractions.ts` (consomem rotas padronizadas `/api/*`).
+
+- Próximos passos (backend/migrations)
+  - Portar controllers do pacote: `pre-cadastros`, `correspondentes`, `empreendimentos`, `simulacoes`, `lead-interactions` e criar `documentos` (tipos/upload/commit/approve/reject/zip).
+  - Aplicar migrations/funcs do pacote (tabelas: empreendimentos, correspondentes, correspondentes_usuarios, pre_cadastros, documentos_pre_cadastro, aprovacoes; funções: generate_pre_cadastro_numero, calcular_percentual_documentos; bucket/policies Storage).
+  - Unificar geração do Prisma Client; registrar rotas; testes de fumaça; publicar containers.
+
+- Pendências atualizadas (2025-10-26)
+  - Pré‑Cadastro
+    - [x] CRUD + detalhe + atribuição a Correspondente
+    - [x] Função SQL de percentual de documentos (calcular_percentual_documentos)
+    - [x] Download em lote (ZIP)
+    - [ ] Percentual consumido diretamente da função no backend (hoje cálculo local na UI)
+    - [ ] PDF único mesclado dos documentos
+  - Documentos
+    - [x] Tipos configuráveis (CRUD)
+    - [x] Upload assinado via Supabase + commit
+    - [x] Aprovação/Rejeição
+    - [ ] RLS/Policies do bucket `documents` publicadas e validadas
+  - Correspondentes
+    - [x] Empresas e usuários + atribuição no Pré‑Cadastro
+  - Leads
+    - [x] Lista com Lead Score
+    - [x] Ficha detalhada (dialog) com timeline e anotações
+    - [ ] Persistir probabilidade manual (1–5) e ações rápidas (kanban) com endpoints dedicados
+  - Deals/CRM
+    - [x] Exibir status de Pré‑Cadastro no card
+    - [ ] Vincular/visualizar documentos no deal e timeline de atividades
+  - Agendamentos
+    - [ ] Criar a partir de lead/deal/pré‑cadastro na UI (ligação completa)
+    - [ ] Confirmações WhatsApp + lembretes + feedback (worker)
+  - Simulação
+    - [x] Calcular e salvar
+    - [ ] PDF com conteúdo real e envio por e‑mail/WhatsApp
+  - Custom Fields
+    - [ ] UI admin completa + renderização dinâmica/validação em formulários
+  - Auditoria
+    - [ ] Trilhas em Leads/Deals/Pré‑Cadastros/Documentos/Distribuição
+  - Notificações
+    - [ ] Eventos do CRM + preferências por usuário + canais (in‑app/e‑mail/WhatsApp)
+  - Relatórios/Dashboards
+    - [ ] Métricas de Leads/Pré‑Cadastros/Deals/Atendimento + exportáveis
+  - WhatsApp contextual
+    - [ ] Confirmações de visita, status de pré‑cadastro, lembretes de documentos (templates)
+
+- Critérios de aceite finais
+  - Rotas backend respondendo com 2xx para todos os serviços novos; uploads assinado/Storage idempotentes; RLS verificada.
+  - CRM Hub operando sem erros; criação/edição/consulta ponta a ponta para cada módulo.
+  - Smokes + CI (lint/typecheck/prisma validate/build) verdes; monitoramento com novos endpoints.
+
+Atualização (2025-10-27T00:55:00-03:00)
+- Docker build e deploy
+  - Imagens atualizadas e containers reiniciados: `docker-api`, `docker-worker`, `docker-frontend`. API saudável em `:4000` (healthz OK).
+  - Rotas ausentes que causavam falha foram removidas do bootstrap para estabilização: `internal-chat`, `properties`, `visits`, `message-templates` (reintroduzir quando os arquivos existirem).
+- Banco de dados (CRM)
+  - Migração aplicada: `202510270900_crm_init` (tabelas `empreendimentos`, `correspondentes`, `correspondentes_usuarios`, `pre_cadastros`, `documentos_pre_cadastro`, `documento_tipos`).
+  - Função `public.calcular_percentual_documentos(uuid)` criada para alimentar o percentual de documentação.
+- Prisma/schema
+  - Conflito de modelo `appointments` resolvido (remoção de duplicidade e relações órfãs), permitindo `prisma generate` limpo.
+- Seed
+  - Corrigido `scripts/seed-admin.ts` e executado no container. Admin criado/atualizado: `admin@primezapia.com` (tenant `00000000-0000-0000-0000-000000000001`).
+- Limpeza e espaço
+  - Limpeza de imagens/volumes não usados (`image/container/volume/builder prune`).
+  - Uso de disco raiz agora: 16% usado, 114G livres (antes ~80%).

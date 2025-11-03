@@ -1,0 +1,16 @@
+import { Router } from 'express';
+import { messageTemplatesController } from '../controllers/message-templates.controller.js';
+import { authenticate } from '../middleware/auth.js';
+
+const router = Router();
+
+router.use(authenticate);
+
+router.get('/', messageTemplatesController.list);
+router.get('/:id', messageTemplatesController.get);
+router.post('/', messageTemplatesController.create);
+router.put('/:id', messageTemplatesController.update);
+router.delete('/:id', messageTemplatesController.delete);
+
+export default router;
+

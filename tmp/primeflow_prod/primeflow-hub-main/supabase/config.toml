@@ -1,0 +1,28 @@
+project_id = "spanwhewvcqsbpgwerck"
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.ai-function-call]
+verify_jwt = true
+
+[functions.rag-search]
+verify_jwt = true
+
+[functions.ai-lead-qualifier]
+verify_jwt = false
+
+[functions.ai-property-recommender]
+verify_jwt = false
+
+[functions.ai-property-description]
+verify_jwt = false
+
+[functions.ai-agent-execute]
+verify_jwt = true
+
+[functions.ai-assist]
+verify_jwt = true
+
+[functions.facebook-oauth]
+verify_jwt = true

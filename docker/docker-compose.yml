@@ -1,0 +1,145 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: primeflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: primeflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: primeflow-redis
+    restart: unless-stopped
+    # Evita MISCONF bloqueando escritas: desabilita persistência e stop-writes-on-bgsave-error
+    command: ["redis-server","--save","","--appendonly","no","--stop-writes-on-bgsave-error","no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: primeflow-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - ../.env
+      - .env
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-changeme_min_32_chars}
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/primeflow}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_URL: ${REDIS_URL:-}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-https://primezap.primezapia.com}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: primezap-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    container_name: primeflow-worker
+    restart: unless-stopped
+    env_file:
+      - ../.env
+      - .env
+    environment:
+      NODE_ENV: production
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/primeflow}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-baileys}
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+      BROADCAST_MAX_CONCURRENCY: ${BROADCAST_MAX_CONCURRENCY:-3}
+      BROADCAST_JITTER_PCT: ${BROADCAST_JITTER_PCT:-10}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+      - whatsapp_sessions:/app/.wwebjs_auth
+      - baileys_sessions:/app/.baileys-auth
+
+  migrator:
+    image: postgres:16-alpine
+    container_name: primeflow-migrator
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: postgres
+    volumes:
+      - ../prisma/migrations:/migrations:ro
+      - ../supabase/migrations:/supamigrations:ro
+      - ../supabase/documents_policies.sql:/supapolicies.sql:ro
+    entrypoint: ["/bin/sh","-c"]
+    command: >-
+      sh -lc 'until pg_isready -h postgres -p 5432 -U postgres; do echo "Aguardando Postgres..."; sleep 2; done;
+      echo "Aplicando Prisma migrations...";
+      for f in /migrations/*.sql; do echo "Aplicando $f"; psql -h postgres -U postgres -d primeflow -f "$f"; done;
+      echo "Aplicando Supabase migrations...";
+      if [ -d /supamigrations ]; then for f in /supamigrations/*.sql; do echo "Aplicando $f"; psql -h postgres -U postgres -d primeflow -f "$f"; done; fi;
+      if [ -f /supapolicies.sql ]; then echo "(Skipping) Storage policies requerem schema Supabase (storage.*)"; fi;
+      echo "Migrations aplicadas."'
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+  whatsapp_sessions:
+  baileys_sessions:

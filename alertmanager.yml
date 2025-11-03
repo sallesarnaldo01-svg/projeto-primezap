@@ -1,0 +1,90 @@
+global:
+  resolve_timeout: 5m
+  # Configuração SMTP para envio de alertas por email
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@primezap.com'
+  smtp_auth_username: 'alerts@primezap.com'
+  smtp_auth_password: 'sua_senha_aqui'
+  smtp_require_tls: true
+
+# Templates para alertas
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Rota principal
+route:
+  receiver: 'default-receiver'
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  
+  # Rotas específicas por severidade
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      continue: true
+    
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+
+# Inibição de alertas (evita spam)
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+
+# Receivers (destinos dos alertas)
+receivers:
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'devops@primezap.com'
+        headers:
+          Subject: '[PrimeZap] Alerta: {{ .GroupLabels.alertname }}'
+        html: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; }
+              .alert { padding: 20px; margin: 10px 0; border-radius: 5px; }
+              .critical { background-color: #ffebee; border-left: 5px solid #f44336; }
+              .warning { background-color: #fff3e0; border-left: 5px solid #ff9800; }
+              .info { background-color: #e3f2fd; border-left: 5px solid #2196f3; }
+              .label { font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <h2>🚨 Alerta PrimeZapAI</h2>
+            {{ range .Alerts }}
+            <div class="alert {{ .Labels.severity }}">
+              <p><span class="label">Alerta:</span> {{ .Labels.alertname }}</p>
+              <p><span class="label">Severidade:</span> {{ .Labels.severity }}</p>
+              <p><span class="label">Descrição:</span> {{ .Annotations.description }}</p>
+              <p><span class="label">Início:</span> {{ .StartsAt }}</p>
+            </div>
+            {{ end }}
+          </body>
+          </html>
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'devops@primezap.com,admin@primezap.com'
+        send_resolved: true
+        headers:
+          Subject: '🚨 [CRÍTICO] {{ .GroupLabels.alertname }}'
+    # Webhook para Slack (opcional)
+    webhook_configs:
+      - url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        send_resolved: true
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'devops@primezap.com'
+        send_resolved: true
+        headers:
+          Subject: '⚠️ [AVISO] {{ .GroupLabels.alertname }}'

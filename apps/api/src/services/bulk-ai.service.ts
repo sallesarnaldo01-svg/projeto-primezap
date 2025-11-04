@@ -15,6 +15,11 @@ import { logger } from '../lib/logger';
 export async function classifyLeadsBulk(leadIds: string[], classificationType: string) {
   logger.info({ leadIds, classificationType }, 'Executing bulk classification for leads.');
   // TODO: Implementar a lógica de chamada ao serviço de IA e atualização do DB
+  // Exemplo de lógica de atualização simulada no Prisma:
+  // await prisma.lead.updateMany({
+  //   where: { id: { in: leadIds } },
+  //   data: { status: 'Classificado por IA', score: 80 }
+  // });
   await new Promise(resolve => setTimeout(resolve, 1000)); // Simula processamento
   return {
     success: true,
@@ -31,6 +36,11 @@ export async function classifyLeadsBulk(leadIds: string[], classificationType: s
 export async function enrichContactsBulk(contactIds: string[]) {
   logger.info({ contactIds }, 'Executing bulk enrichment for contacts.');
   // TODO: Implementar a lógica de chamada ao serviço de enriquecimento de dados
+  // Exemplo de lógica de atualização simulada no Prisma:
+  // await prisma.contact.updateMany({
+  //   where: { id: { in: contactIds } },
+  //   data: { isEnriched: true }
+  // });
   await new Promise(resolve => setTimeout(resolve, 1000)); // Simula processamento
   return {
     success: true,

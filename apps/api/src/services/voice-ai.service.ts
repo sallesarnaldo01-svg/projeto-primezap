@@ -15,6 +15,9 @@ export async function processCallAudio(audioFilePath: string) {
   logger.info({ audioFilePath }, 'Initiating Voice AI processing for audio file.');
 
   // TODO: Implementar a lógica de chamada à API de Transcrição (ex: OpenAI Whisper)
+  // Exemplo de lógica de integração simulada:
+  // const transcriptionResult = await fetch('https://api.openai.com/v1/audio/transcriptions', { ... });
+  // const sentimentResult = await fetch('https://api.openai.com/v1/completions', { ... });
   // 1. Ler o arquivo de áudio
   // 2. Enviar para a API de Transcrição
   // 3. Enviar a transcrição para a API de Análise de Sentimento/Resumo

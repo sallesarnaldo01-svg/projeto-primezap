@@ -659,7 +659,7 @@ export default function Personalizacao() {
                   className="font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Scripts serão adicionados ao <head> da página
+                  Scripts serão adicionados ao &lt;head&gt; da página
                 </p>
               </CardContent>
             </Card>

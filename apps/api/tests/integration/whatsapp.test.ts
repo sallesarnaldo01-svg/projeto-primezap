@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
-import { app } from '../../src/app';
+import { app } from '../../src/index';
 import { prisma } from '../../src/lib/prisma';
 import { redis } from '../../src/lib/redis';
 

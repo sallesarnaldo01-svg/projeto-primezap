@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import { app } from '../../src/app';
+import { app } from '../../src/index';
 import { prisma } from '../../src/lib/prisma';
 
 describe('Auth Integration Tests', () => {

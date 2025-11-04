@@ -1,36 +1,6 @@
-# 🚀 PrimeZap AI
+# PrimeZapAI - Sistema CRM & Omnichannel
 
-<div align="center">
-
-**Plataforma completa de gestão de conversas com IA para WhatsApp, Telegram, Instagram e Facebook**
-
-[![Build Status](https://img.shields.io/github/actions/workflow/status/sallesarnaldo01-svg/projeto-primezap/ci-cd.yml?branch=main)](https://github.com/sallesarnaldo01-svg/projeto-primezap/actions)
-[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](https://github.com/sallesarnaldo01-svg/projeto-primezap)
-[![License](https://img.shields.io/badge/license-Proprietary-blue)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-orange)](package.json)
-
-[Documentação](docs/) • [API Docs](http://localhost:4000/api/docs) • [Suporte](https://help.primezap.com)
-
-</div>
-
----
-
-## 🎯 Sobre
-
-**PrimeZap AI** é uma plataforma SaaS completa para gerenciamento de conversas multicanal com recursos avançados de inteligência artificial. Permite que empresas gerenciem todas as suas conversas de WhatsApp, Telegram, Instagram e Facebook em um único lugar, com automações inteligentes, CRM integrado e análises preditivas.
-
-### Status do Projeto: ✅ **100% COMPLETO** - **PRODUCTION-READY** 🚀
-
-| Área | Status | Completude |
-|------|--------|------------|
-| **Frontend** | ✅ Completo | 95% |
-| **Backend API** | ✅ Completo | 100% |
-| **Banco de Dados** | ✅ Completo | 100% |
-| **Integrações** | ✅ Completo | 100% |
-| **Testes** | ✅ Excelente | 87% (267 casos) |
-| **Documentação** | ✅ Completa | 100% |
-| **CI/CD** | ✅ Robusto | 100% |
-| **Segurança** | ✅ Alta | 100% |
+Sistema completo de CRM e atendimento omnichannel desenvolvido com React, TypeScript e Tailwind CSS.
 
 ## 🚀 Tecnologias
 

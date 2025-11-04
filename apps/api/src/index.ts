@@ -163,6 +163,7 @@ import dealInteractionsRoutes from './routes/deal-interactions.routes.js';
 import emailRoutes from './routes/email.routes.js';
 import telegramRoutes from './routes/telegram.routes.js';
 import smsRoutes from './routes/sms.routes.js';
+import voiceAiRoutes from './routes/voice-ai.routes.js';
 // notificationsRoutes imported once above
 import visitsRoutes from './routes/visits.routes.js';
 
@@ -221,6 +222,7 @@ app.use('/api/deal-interactions', dealInteractionsRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/sms', smsRoutes);
+app.use('/api/voice-ai', voiceAiRoutes);
 // duplicate removed
 
 app.get('/', (req, res) => {

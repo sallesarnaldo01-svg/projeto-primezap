@@ -1,0 +1,30 @@
+# Snyk (https://snyk.io) policy file
+
+# Specifies for which severities to fail the build
+# Severity: low, medium, high, critical
+version: v1.25.0
+
+# Ignore specific vulnerabilities (examples - adjust as needed)
+ignore: {}
+
+# Patch specific vulnerabilities
+patch: {}
+
+# Language settings
+language-settings:
+  javascript:
+    # Ignore devDependencies in production
+    ignore-dev-dependencies: true
+
+# Exclude paths from scanning
+exclude:
+  global:
+    - node_modules/**
+    - dist/**
+    - .next/**
+    - coverage/**
+    - '**/*.test.ts'
+    - '**/*.spec.ts'
+    - '**/tests/**'
+    - '**/fixtures/**'
+    - '**/mockData/**'

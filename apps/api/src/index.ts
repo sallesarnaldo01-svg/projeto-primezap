@@ -159,11 +159,13 @@ import leadInteractionsRoutes from './routes/lead-interactions.routes.js';
 import documentosRoutes from './routes/documentos.routes.js';
 import leadEnhancementsRoutes from './routes/lead-enhancements.routes.js';
 import leadActionsRoutes from './routes/lead-actions.routes.js';
+import insightsRoutes from './routes/insights.routes.js';
 import dealInteractionsRoutes from './routes/deal-interactions.routes.js';
 import emailRoutes from './routes/email.routes.js';
 import telegramRoutes from './routes/telegram.routes.js';
 import smsRoutes from './routes/sms.routes.js';
 import voiceAiRoutes from './routes/voice-ai.routes.js';
+import marketingRoutes from './routes/marketing.routes.js';
 // notificationsRoutes imported once above
 import visitsRoutes from './routes/visits.routes.js';
 
@@ -219,10 +221,12 @@ app.use('/api/documentos', documentosRoutes);
 app.use('/api/leads', leadEnhancementsRoutes);
 app.use('/api/lead-actions', leadActionsRoutes);
 app.use('/api/deal-interactions', dealInteractionsRoutes);
+app.use('/api/insights', insightsRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/voice-ai', voiceAiRoutes);
+app.use('/api/marketing', marketingRoutes);
 // duplicate removed
 
 app.get('/', (req, res) => {

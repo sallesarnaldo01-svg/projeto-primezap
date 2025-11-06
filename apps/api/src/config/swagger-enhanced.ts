@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { SwaggerOptions } from '@fastify/swagger';
-import { FastifySwaggerUiOptions } from '@fastify/swagger-ui';
+import fastifySwagger, { SwaggerOptions } from '@fastify/swagger';
+import fastifySwaggerUi, { FastifySwaggerUiOptions } from '@fastify/swagger-ui';
 
 /**
  * Enhanced Swagger Configuration for PrimeZap AI
@@ -275,8 +275,8 @@ export const swaggerUiOptions: FastifySwaggerUiOptions = {
  * Register Swagger plugin
  */
 export async function registerSwagger(app: FastifyInstance) {
-  await app.register(require('@fastify/swagger'), swaggerOptions);
-  await app.register(require('@fastify/swagger-ui'), swaggerUiOptions);
+  await app.register(fastifySwagger, swaggerOptions as SwaggerOptions);
+  await app.register(fastifySwaggerUi, swaggerUiOptions);
 
   console.log('📚 Swagger documentation available at /api/docs');
 }

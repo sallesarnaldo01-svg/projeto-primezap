@@ -159,15 +159,15 @@ export function createRateLimiter(
       });
     }
 
-    // Hook to decrement on skip conditions
+    // Decrement usage after the response is sent if needed
     if (skipSuccessfulRequests || skipFailedRequests) {
-      reply.addHook('onResponse', async (request, reply) => {
+      reply.raw.once('finish', () => {
         const shouldSkip =
           (skipSuccessfulRequests && reply.statusCode < 400) ||
           (skipFailedRequests && reply.statusCode >= 400);
 
         if (shouldSkip) {
-          await store.decrement(key);
+          void store.decrement(key);
         }
       });
     }

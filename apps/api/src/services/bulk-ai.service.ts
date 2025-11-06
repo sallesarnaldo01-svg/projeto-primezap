@@ -203,14 +203,20 @@ export async function enrichContactsBulk(contactIds: string[]) {
     // 2. Enriquecer cada contato com IA
     const results: EnrichmentResult[] = await Promise.all(
       contacts.map(async (contact) => {
+        const enrichedContact = contact as typeof contact & {
+          company?: string | null;
+          jobTitle?: string | null;
+          metadata?: Record<string, any> | null;
+        };
+
         try {
           const prompt = `
 Analise os dados deste contato e sugira informações adicionais relevantes:
 
-Nome: ${contact.name || 'N/A'}
-Email: ${contact.email || 'N/A'}
-Telefone: ${contact.phone || 'N/A'}
-Empresa: ${contact.company || 'N/A'}
+Nome: ${enrichedContact.name || 'N/A'}
+Email: ${enrichedContact.email || 'N/A'}
+Telefone: ${enrichedContact.phone || 'N/A'}
+Empresa: ${enrichedContact.company || 'N/A'}
 
 Retorne um JSON com possíveis enriquecimentos:
 {
@@ -244,19 +250,19 @@ Retorne um JSON com possíveis enriquecimentos:
           // 3. Atualizar contato no Prisma (apenas se houver dados novos)
           const updateData: any = {};
 
-          if (enrichedData.company && !contact.company) {
+          if (enrichedData.company && !enrichedContact.company) {
             updateData.company = enrichedData.company;
           }
 
-          if (enrichedData.jobTitle && !contact.jobTitle) {
+          if (enrichedData.jobTitle && !enrichedContact.jobTitle) {
             updateData.jobTitle = enrichedData.jobTitle;
           }
 
           // Atualizar metadata com informações adicionais
           if (enrichedData.industry || enrichedData.linkedinUrl || enrichedData.additionalInfo) {
-            const currentMetadata = (contact.metadata as any) || {};
+            const currentMetadata = enrichedContact.metadata as Record<string, any> | null;
             updateData.metadata = {
-              ...currentMetadata,
+              ...(currentMetadata || {}),
               ...(enrichedData.industry && { industry: enrichedData.industry }),
               ...(enrichedData.linkedinUrl && { linkedinUrl: enrichedData.linkedinUrl }),
               ...(enrichedData.additionalInfo && { enrichedData: enrichedData.additionalInfo }),

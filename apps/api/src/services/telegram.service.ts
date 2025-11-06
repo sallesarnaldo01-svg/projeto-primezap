@@ -107,7 +107,7 @@ export async function sendTelegramDocument(
   try {
     logger.info({ chatId, caption }, 'Sending Telegram document');
 
-    const sentMessage = await bot.sendDocument(chatId, document, {}, { caption });
+    const sentMessage = await bot.sendDocument(chatId, document, caption ? { caption } : undefined);
 
     logger.info({ chatId, messageId: sentMessage.message_id }, 'Telegram document sent successfully');
 

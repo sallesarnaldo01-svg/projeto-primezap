@@ -37,7 +37,12 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const newPrompt = await createPrompt({ name, content, type, tenantId });
+    const newPrompt = await createPrompt({
+      name,
+      systemPrompt: content,
+      model: type,
+      tenantId,
+    });
     res.status(201).json(newPrompt);
   } catch (error) {
     res.status(500).json({ message: 'Failed to create prompt', error: error.message });

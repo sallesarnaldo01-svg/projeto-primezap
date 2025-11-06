@@ -21,6 +21,14 @@ interface EmailOptions {
   }>;
 }
 
+function normalizeRecipients(value?: string | string[]) {
+  if (!value) {
+    return undefined;
+  }
+
+  return Array.isArray(value) ? value.join(', ') : value;
+}
+
 /**
  * Cria transporter do Nodemailer com configuração do ambiente
  */
@@ -67,12 +75,12 @@ export async function sendEmail(options: EmailOptions | { to: string; subject: s
         }
       : {
           from: (options as EmailOptions).from || process.env.SMTP_FROM || process.env.SMTP_USER,
-          to: Array.isArray((options as EmailOptions).to) ? (options as EmailOptions).to.join(', ') : (options as EmailOptions).to,
+          to: normalizeRecipients((options as EmailOptions).to) || (options as EmailOptions).to,
           subject: (options as EmailOptions).subject,
           html: (options as EmailOptions).html,
           text: (options as EmailOptions).text,
-          cc: (options as EmailOptions).cc ? (Array.isArray((options as EmailOptions).cc) ? (options as EmailOptions).cc!.join(', ') : (options as EmailOptions).cc) : undefined,
-          bcc: (options as EmailOptions).bcc ? (Array.isArray((options as EmailOptions).bcc) ? (options as EmailOptions).bcc!.join(', ') : (options as EmailOptions).bcc) : undefined,
+          cc: normalizeRecipients((options as EmailOptions).cc),
+          bcc: normalizeRecipients((options as EmailOptions).bcc),
           attachments: (options as EmailOptions).attachments,
         };
 

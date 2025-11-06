@@ -1,6 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import crypto from 'crypto';
 
+type RequestWithCookies = FastifyRequest & { cookies?: Record<string, string> };
+
 /**
  * Security Middleware for PrimeZap AI
  * 
@@ -186,7 +188,7 @@ export function csrfMiddleware(options: {
     const headerToken = request.headers[headerName.toLowerCase()] as string;
 
     // Get CSRF token from cookie
-    const cookieToken = request.cookies?.[cookieName];
+    const cookieToken = (request as RequestWithCookies).cookies?.[cookieName];
 
     // Validate tokens
     if (!headerToken || !cookieToken || headerToken !== cookieToken) {

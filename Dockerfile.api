@@ -30,6 +30,8 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY apps/api/ ./apps/api/
 COPY prisma/ ./prisma/
 COPY package.json ./
+COPY tsconfig*.json ./
+COPY packages ./packages
 
 # Generate Prisma Client
 RUN cd apps/api && npx prisma generate

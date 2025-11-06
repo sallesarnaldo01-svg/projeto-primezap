@@ -10,7 +10,7 @@ RUN npm install -g pnpm
 
 # Copy package files
 COPY apps/api/package*.json ./apps/api/
-COPY package*.json pnpm-lock.yaml* ./
+COPY package*.json pnpm-lock.yaml* pnpm-workspace.yaml ./
 
 # Install dependencies
 RUN cd apps/api && pnpm install --frozen-lockfile

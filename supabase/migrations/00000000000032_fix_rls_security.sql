@@ -32,7 +32,7 @@ DROP POLICY IF EXISTS "Admins can manage all contacts" ON public.contacts;
 CREATE POLICY "contacts_select_policy" ON public.contacts
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -41,7 +41,7 @@ CREATE POLICY "contacts_select_policy" ON public.contacts
 CREATE POLICY "contacts_insert_policy" ON public.contacts
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -50,7 +50,7 @@ CREATE POLICY "contacts_insert_policy" ON public.contacts
 CREATE POLICY "contacts_update_policy" ON public.contacts
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -59,7 +59,7 @@ CREATE POLICY "contacts_update_policy" ON public.contacts
 CREATE POLICY "contacts_delete_policy" ON public.contacts
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -229,7 +229,7 @@ DROP POLICY IF EXISTS "Admins can manage all campaigns" ON public.campaigns;
 CREATE POLICY "campaigns_select_policy" ON public.campaigns
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -238,7 +238,7 @@ CREATE POLICY "campaigns_select_policy" ON public.campaigns
 CREATE POLICY "campaigns_insert_policy" ON public.campaigns
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -247,7 +247,7 @@ CREATE POLICY "campaigns_insert_policy" ON public.campaigns
 CREATE POLICY "campaigns_update_policy" ON public.campaigns
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -256,7 +256,7 @@ CREATE POLICY "campaigns_update_policy" ON public.campaigns
 CREATE POLICY "campaigns_delete_policy" ON public.campaigns
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -275,7 +275,7 @@ DROP POLICY IF EXISTS "Admins can manage all broadcasts" ON public.broadcasts;
 CREATE POLICY "broadcasts_select_policy" ON public.broadcasts
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -284,7 +284,7 @@ CREATE POLICY "broadcasts_select_policy" ON public.broadcasts
 CREATE POLICY "broadcasts_insert_policy" ON public.broadcasts
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -293,7 +293,7 @@ CREATE POLICY "broadcasts_insert_policy" ON public.broadcasts
 CREATE POLICY "broadcasts_update_policy" ON public.broadcasts
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -302,7 +302,7 @@ CREATE POLICY "broadcasts_update_policy" ON public.broadcasts
 CREATE POLICY "broadcasts_delete_policy" ON public.broadcasts
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -321,7 +321,7 @@ DROP POLICY IF EXISTS "Admins can manage all contact lists" ON public.contact_li
 CREATE POLICY "contact_lists_select_policy" ON public.contact_lists
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -330,7 +330,7 @@ CREATE POLICY "contact_lists_select_policy" ON public.contact_lists
 CREATE POLICY "contact_lists_insert_policy" ON public.contact_lists
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -339,7 +339,7 @@ CREATE POLICY "contact_lists_insert_policy" ON public.contact_lists
 CREATE POLICY "contact_lists_update_policy" ON public.contact_lists
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -348,7 +348,7 @@ CREATE POLICY "contact_lists_update_policy" ON public.contact_lists
 CREATE POLICY "contact_lists_delete_policy" ON public.contact_lists
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -367,7 +367,7 @@ DROP POLICY IF EXISTS "Admins can manage all AI agent configs" ON public.ai_agen
 CREATE POLICY "ai_agent_configs_select_policy" ON public.ai_agent_configs
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -376,7 +376,7 @@ CREATE POLICY "ai_agent_configs_select_policy" ON public.ai_agent_configs
 CREATE POLICY "ai_agent_configs_insert_policy" ON public.ai_agent_configs
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -385,7 +385,7 @@ CREATE POLICY "ai_agent_configs_insert_policy" ON public.ai_agent_configs
 CREATE POLICY "ai_agent_configs_update_policy" ON public.ai_agent_configs
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -394,7 +394,7 @@ CREATE POLICY "ai_agent_configs_update_policy" ON public.ai_agent_configs
 CREATE POLICY "ai_agent_configs_delete_policy" ON public.ai_agent_configs
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -413,7 +413,7 @@ DROP POLICY IF EXISTS "Admins can manage all knowledge items" ON public.knowledg
 CREATE POLICY "knowledge_items_select_policy" ON public.knowledge_items
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -422,7 +422,7 @@ CREATE POLICY "knowledge_items_select_policy" ON public.knowledge_items
 CREATE POLICY "knowledge_items_insert_policy" ON public.knowledge_items
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -431,7 +431,7 @@ CREATE POLICY "knowledge_items_insert_policy" ON public.knowledge_items
 CREATE POLICY "knowledge_items_update_policy" ON public.knowledge_items
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -440,7 +440,7 @@ CREATE POLICY "knowledge_items_update_policy" ON public.knowledge_items
 CREATE POLICY "knowledge_items_delete_policy" ON public.knowledge_items
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -459,7 +459,7 @@ DROP POLICY IF EXISTS "Admins can manage all WhatsApp connections" ON public.wha
 CREATE POLICY "whatsapp_connections_select_policy" ON public.whatsapp_connections
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -468,7 +468,7 @@ CREATE POLICY "whatsapp_connections_select_policy" ON public.whatsapp_connection
 CREATE POLICY "whatsapp_connections_insert_policy" ON public.whatsapp_connections
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -477,7 +477,7 @@ CREATE POLICY "whatsapp_connections_insert_policy" ON public.whatsapp_connection
 CREATE POLICY "whatsapp_connections_update_policy" ON public.whatsapp_connections
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -486,7 +486,7 @@ CREATE POLICY "whatsapp_connections_update_policy" ON public.whatsapp_connection
 CREATE POLICY "whatsapp_connections_delete_policy" ON public.whatsapp_connections
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -505,7 +505,7 @@ DROP POLICY IF EXISTS "Admins can manage all correspondentes" ON public.correspo
 CREATE POLICY "correspondentes_select_policy" ON public.correspondentes
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -514,7 +514,7 @@ CREATE POLICY "correspondentes_select_policy" ON public.correspondentes
 CREATE POLICY "correspondentes_insert_policy" ON public.correspondentes
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -523,7 +523,7 @@ CREATE POLICY "correspondentes_insert_policy" ON public.correspondentes
 CREATE POLICY "correspondentes_update_policy" ON public.correspondentes
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -532,7 +532,7 @@ CREATE POLICY "correspondentes_update_policy" ON public.correspondentes
 CREATE POLICY "correspondentes_delete_policy" ON public.correspondentes
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -551,7 +551,7 @@ DROP POLICY IF EXISTS "Admins can manage all correspondentes_usuarios" ON public
 CREATE POLICY "correspondentes_usuarios_select_policy" ON public.correspondentes_usuarios
   FOR SELECT
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -560,7 +560,7 @@ CREATE POLICY "correspondentes_usuarios_select_policy" ON public.correspondentes
 CREATE POLICY "correspondentes_usuarios_insert_policy" ON public.correspondentes_usuarios
   FOR INSERT
   WITH CHECK (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -569,7 +569,7 @@ CREATE POLICY "correspondentes_usuarios_insert_policy" ON public.correspondentes
 CREATE POLICY "correspondentes_usuarios_update_policy" ON public.correspondentes_usuarios
   FOR UPDATE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )
@@ -578,7 +578,7 @@ CREATE POLICY "correspondentes_usuarios_update_policy" ON public.correspondentes
 CREATE POLICY "correspondentes_usuarios_delete_policy" ON public.correspondentes_usuarios
   FOR DELETE
   USING (
-    "tenantId" IN (
+    tenant_id IN (
       SELECT p.tenant_id FROM public.profiles p
       WHERE p.user_id = (SELECT auth.uid())
     )

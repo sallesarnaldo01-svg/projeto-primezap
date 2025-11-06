@@ -136,16 +136,12 @@ COMMENT ON TABLE public.schedules IS 'Agendamentos de visitas e callbacks';
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS public.tag_links (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tag_id      UUID NOT NULL,
   contact_id  UUID,
   lead_id     UUID,
   deal_id     UUID,
-  
-  -- Primary key composta
-  PRIMARY KEY (tag_id, COALESCE(contact_id, '00000000-0000-0000-0000-000000000000'), 
-               COALESCE(lead_id, '00000000-0000-0000-0000-000000000000'), 
-               COALESCE(deal_id, '00000000-0000-0000-0000-000000000000')),
-  
+
   -- Foreign keys
   CONSTRAINT fk_tag_links_tag FOREIGN KEY (tag_id) 
     REFERENCES public.tags(id) ON DELETE CASCADE,

@@ -1,6 +1,17 @@
 import Redis from 'ioredis';
+import { URL } from 'node:url';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';
+
+const buildConnectionFromUrl = (url: string) => {
+  const parsed = new URL(url);
+  return {
+    host: parsed.hostname,
+    port: parsed.port ? Number(parsed.port) : 6379,
+    password: parsed.password || env.REDIS_PASSWORD,
+    maxRetriesPerRequest: null as any,
+  };
+};
 
 const fallbackConnection = {
   host: env.REDIS_HOST,
@@ -9,7 +20,9 @@ const fallbackConnection = {
   maxRetriesPerRequest: null as any,
 };
 
-export const redisConnectionOptions = env.REDIS_URL ? env.REDIS_URL : fallbackConnection;
+export const redisConnectionOptions = env.REDIS_URL
+  ? buildConnectionFromUrl(env.REDIS_URL)
+  : fallbackConnection;
 
 export const redis = new Redis(redisConnectionOptions as any);
 

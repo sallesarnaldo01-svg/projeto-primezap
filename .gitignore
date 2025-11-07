@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+.pnpm-store/
+*.tsbuildinfo
 
 # Prevent accidental committed JS artifacts under worker TS sources
 apps/worker/src/**/*.js

@@ -19,15 +19,15 @@ export declare const updateFlowSchema: z.ZodObject<{
     queueId: z.ZodOptional<z.ZodString>;
     variables: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
 }, "strip", z.ZodTypeAny, {
-    status?: "DRAFT" | "PUBLISHED" | "ARCHIVED" | undefined;
     name?: string | undefined;
     queueId?: string | undefined;
+    status?: "DRAFT" | "PUBLISHED" | "ARCHIVED" | undefined;
     variables?: Record<string, any> | undefined;
     active?: boolean | undefined;
 }, {
-    status?: "DRAFT" | "PUBLISHED" | "ARCHIVED" | undefined;
     name?: string | undefined;
     queueId?: string | undefined;
+    status?: "DRAFT" | "PUBLISHED" | "ARCHIVED" | undefined;
     variables?: Record<string, any> | undefined;
     active?: boolean | undefined;
 }>;

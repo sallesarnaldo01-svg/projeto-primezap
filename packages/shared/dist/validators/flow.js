@@ -2,14 +2,14 @@ import { z } from 'zod';
 export const createFlowSchema = z.object({
     name: z.string().min(1, 'Nome é obrigatório'),
     queueId: z.string().optional(),
-    variables: z.record(z.any()).optional()
+    variables: z.record(z.string(), z.any()).optional()
 });
 export const updateFlowSchema = z.object({
     name: z.string().min(1).optional(),
     status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
     active: z.boolean().optional(),
     queueId: z.string().optional(),
-    variables: z.record(z.any()).optional()
+    variables: z.record(z.string(), z.any()).optional()
 });
 export const createNodeSchema = z.object({
     type: z.enum([

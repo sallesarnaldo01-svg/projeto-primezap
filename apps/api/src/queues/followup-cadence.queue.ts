@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
-import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
+import { redisConnectionOptions } from '../lib/redis.js';
 
 export interface FollowUpCadenceJob {
   tenantId: string;
@@ -12,10 +12,7 @@ export interface FollowUpCadenceJob {
 const queueName = 'followup-cadence';
 
 export const followUpCadenceQueue = new Queue<FollowUpCadenceJob>(queueName, {
-  connection: {
-    host: env.REDIS_HOST,
-    port: env.REDIS_PORT
-  },
+  connection: redisConnectionOptions as any,
   defaultJobOptions: {
     removeOnComplete: true,
     removeOnFail: false,

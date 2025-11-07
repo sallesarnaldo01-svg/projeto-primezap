@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
-import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
+import { redisConnectionOptions } from '../lib/redis.js';
 
 export interface BroadcastJob {
   broadcastId: string;
@@ -10,10 +10,7 @@ export interface BroadcastJob {
 const queueName = 'broadcast-run';
 
 export const broadcastQueue = new Queue<BroadcastJob>(queueName, {
-  connection: {
-    host: env.REDIS_HOST,
-    port: env.REDIS_PORT,
-  },
+  connection: redisConnectionOptions as any,
   defaultJobOptions: {
     removeOnComplete: true,
     removeOnFail: false,

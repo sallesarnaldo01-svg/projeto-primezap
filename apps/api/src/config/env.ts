@@ -14,6 +14,10 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((val) => (typeof val === 'string' && val.trim().length > 0 ? val : undefined)),
+  REDIS_PASSWORD: z
+    .string()
+    .optional()
+    .transform((val) => (typeof val === 'string' && val.trim().length > 0 ? val : undefined)),
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default('7d'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),

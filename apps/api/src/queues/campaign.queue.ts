@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
-import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
+import { redisConnectionOptions } from '../lib/redis.js';
 
 export interface CampaignJob {
   campaignId: string;
@@ -9,10 +9,7 @@ export interface CampaignJob {
 const queueName = 'campaign-dispatch';
 
 export const campaignQueue = new Queue<CampaignJob>(queueName, {
-  connection: {
-    host: env.REDIS_HOST,
-    port: env.REDIS_PORT,
-  },
+  connection: redisConnectionOptions as any,
   defaultJobOptions: {
     removeOnComplete: true,
     removeOnFail: false,

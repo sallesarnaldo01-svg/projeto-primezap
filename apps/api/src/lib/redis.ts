@@ -8,7 +8,7 @@ const buildConnectionFromUrl = (url: string) => {
   return {
     host: parsed.hostname,
     port: parsed.port ? Number(parsed.port) : 6379,
-    password: parsed.password || env.REDIS_PASSWORD,
+    password: parsed.password ? decodeURIComponent(parsed.password) : env.REDIS_PASSWORD,
     maxRetriesPerRequest: null as any,
   };
 };

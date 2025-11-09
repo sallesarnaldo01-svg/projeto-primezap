@@ -84,7 +84,7 @@ Este documento descreve a arquitetura completa de deploy do PrimeZap AI, incluin
 SSH_HOST                    # IP ou domínio do VPS
 SSH_USER                    # Usuário SSH (ex: ubuntu)
 SSH_PRIVATE_KEY             # Chave privada SSH
-APP_DIR                     # Diretório da aplicação (ex: /home/ubuntu/primezap)
+APP_DIR                     # Diretório da aplicação (ex: /home/administrator/primezap)
 
 # Supabase
 SUPABASE_URL                # URL do projeto Supabase
@@ -250,8 +250,8 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 
 # 2. Criar diretório da aplicação
-mkdir -p /home/ubuntu/primezap
-cd /home/ubuntu/primezap
+mkdir -p /home/administrator/primezap
+cd /home/administrator/primezap
 
 # 3. Configurar SSH Key
 # Adicionar chave pública ao ~/.ssh/authorized_keys
@@ -313,10 +313,10 @@ git push origin main
 
 ```bash
 # 1. Conectar ao VPS
-ssh ubuntu@seu-vps.com
+ssh administrator@seu-vps.com
 
 # 2. Ir para diretório da aplicação
-cd /home/ubuntu/primezap
+cd /home/administrator/primezap
 
 # 3. Pull código
 git pull origin main
@@ -391,8 +391,8 @@ docker volume ls
 # GitHub → Actions → Ver workflow falhado
 
 # 2. Conectar ao VPS e ver logs
-ssh ubuntu@seu-vps.com
-cd /home/ubuntu/primezap
+ssh administrator@seu-vps.com
+cd /home/administrator/primezap
 docker compose -f docker-compose.prod.yml logs -f
 
 # 3. Verificar .env

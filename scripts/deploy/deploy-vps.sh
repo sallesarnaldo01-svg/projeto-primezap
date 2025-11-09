@@ -8,7 +8,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 
 REPO_URL="${REPO_URL:-git@github.com:${GITHUB_REPOSITORY}.git}"
-APP_DIR="${APP_DIR:-/home/ubuntu/primezap}"
+APP_DIR="${APP_DIR:-/home/administrator/primezap}"
 BRANCH="${BRANCH:-main}"
 DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_SOURCE_FILE="${ENV_SOURCE_FILE:-.env.production}"

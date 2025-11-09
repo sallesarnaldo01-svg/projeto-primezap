@@ -43,7 +43,7 @@ como checklist definitivo para colocar o novo repositório em produção.
 1. Atualize pacotes e instale `git`, `curl`, `ufw`.
 2. Instale Docker com o script oficial e confirme `docker compose version`.
 3. Adicione o usuário padrão ao grupo docker (`sudo usermod -aG docker ubuntu`).
-4. Crie a árvore `/home/ubuntu/primezap` e garanta posse do usuário `ubuntu`.
+4. Crie a árvore `/home/administrator/primezap` e garanta posse do usuário `ubuntu`.
 5. Gere uma chave SSH ED25519 exclusiva para puxar o código via GitHub Actions:
 
 ```bash
@@ -65,7 +65,7 @@ cat ~/.ssh/github_actions.pub >> ~/.ssh/authorized_keys
 | `SSH_PORT` | Porta SSH (default 22) |
 | `SSH_USER` | Usuário SSH (ex.: `ubuntu`) |
 | `SSH_PRIVATE_KEY` | Conteúdo da chave privada gerada no passo 3 |
-| `APP_DIR` | `/home/ubuntu/primezap` |
+| `APP_DIR` | `/home/administrator/primezap` |
 | `SUPABASE_URL` | URL do projeto Supabase |
 | `SUPABASE_ANON_KEY` | Chave pública Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Chave de service role |
@@ -103,7 +103,7 @@ chegar ao `main` ele executa:
 >
 > ```bash
 > REPO_URL=git@github.com:<owner>/<repo>.git \
-> APP_DIR=/home/ubuntu/primezap \
+> APP_DIR=/home/administrator/primezap \
 > BRANCH=main \
 > bash scripts/deploy/deploy-vps.sh
 > ```

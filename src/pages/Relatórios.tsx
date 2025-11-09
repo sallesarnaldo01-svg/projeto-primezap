@@ -129,14 +129,14 @@ export default function Relatorios() {
   }, [conversations.byPlatform]);
 
   const agentPerformance = useMemo(() => {
-    if (!performance.performance.length) return fallbackAgentPerformance;
+    if (!performance?.performance?.length) return fallbackAgentPerformance;
     return performance.performance.map((item) => ({
       nome: item.user.name,
       atendimentos: item.metrics.conversations,
       satisfacao: 4 + Math.random() * 1,
       conversoes: item.metrics.deals,
     }));
-  }, [performance.performance]);
+  }, [performance?.performance]);
 
   const satisfactionSeries = useMemo(() => fallbackSatisfaction, []);
 

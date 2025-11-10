@@ -280,6 +280,6 @@ process.on('SIGINT', async () => {
   });
 });
 
-// start(); // Removido para testes de integração. A inicialização deve ser feita pelo script de execução.
+start();
 
 export { app, httpServer };

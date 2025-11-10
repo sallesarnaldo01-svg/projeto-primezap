@@ -33,7 +33,17 @@ const baseClient = new PrismaClient({
     { level: 'query', emit: 'event' },
     { level: 'error', emit: 'stdout' },
     { level: 'warn', emit: 'stdout' }
-  ]
+  ],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
+    }
+  },
+  __internal: {
+    engine: {
+      connection_timeout: 10
+    }
+  }
 });
 
 const aliasDelegates: { [K in keyof AliasDelegates]: () => AliasDelegates[K] } = {

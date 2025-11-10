@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { callsController } from '../controllers/calls.controller.js';
 import { authenticate } from '../middleware/auth.js';
-import { asyncHandler } from '../middleware/async-handler.js';
+import { asyncHandler } from '../middleware/error.js';
 
 const router = Router();
 

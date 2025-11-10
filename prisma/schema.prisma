@@ -631,6 +631,7 @@ model contacts {
   tenants              tenants                @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   leads                leads[]                @relation("LeadContact")
   tagLinks             tag_links[]            @relation("TagLinkContact")
+  calls                calls[]
 
   @@index([facebookId], map: "idx_contacts_facebook_id")
   @@index([instagramId], map: "idx_contacts_instagram_id")
@@ -915,6 +916,7 @@ model deals {
   history           deal_history[]
   activities        deal_activities[]
   tagLinks          tag_links[]       @relation("TagLinkDeal")
+  commissions       commissions[]
 
   @@index([contactId], map: "idx_deals_contact_id")
   @@index([ownerId], map: "idx_deals_owner_id")
@@ -1425,6 +1427,9 @@ model tenants {
   property_visits    property_visits[]
   leads              leads[]              @relation("LeadTenant")
   schedules          schedules[]          @relation("ScheduleTenant")
+  workflows          workflows[]
+  calls              calls[]
+  commissions        commissions[]
 
   @@schema("public")
 }
@@ -1560,6 +1565,9 @@ model public_users {
   leadStatusChanges     lead_status_history[]   @relation("LeadStatusChangedBy")
   leadMessages          lead_messages[]         @relation("LeadMessageAuthor")
   schedulesCreated      schedules[]             @relation("ScheduleCreator")
+  workflowsCreated      workflows[]
+  callsMade             calls[]
+  commissionsEarned     commissions[]
 
   @@map("users")
   @@schema("public")
@@ -1880,3 +1888,84 @@ model tag_links {
   @@schema("public")
 }
 
+
+/// Workflows for automation
+model workflows {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String
+  description String?
+  status      String?   @default("active")
+  trigger     Json
+  actions     Json
+  stats       Json?     @default("{}")
+  category    String?
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  
+  tenant      tenants       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  creator     public_users? @relation(fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([tenantId], map: "idx_workflows_tenant")
+  @@index([status], map: "idx_workflows_status")
+  @@index([category], map: "idx_workflows_category")
+  @@schema("public")
+}
+
+/// Calls log
+model calls {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  contactId    String?   @map("contact_id") @db.Uuid
+  userId       String?   @map("user_id") @db.Uuid
+  direction    String?
+  status       String?
+  duration     Int?      @default(0)
+  phoneNumber  String?   @map("phone_number")
+  recordingUrl String?   @map("recording_url")
+  notes        String?
+  callType     String?   @default("voice") @map("call_type")
+  startedAt    DateTime? @map("started_at") @db.Timestamptz(6)
+  endedAt      DateTime? @map("ended_at") @db.Timestamptz(6)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  
+  tenant       tenants       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  contact      contacts?     @relation(fields: [contactId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  user         public_users? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([tenantId], map: "idx_calls_tenant")
+  @@index([contactId], map: "idx_calls_contact")
+  @@index([userId], map: "idx_calls_user")
+  @@index([status], map: "idx_calls_status")
+  @@index([startedAt], map: "idx_calls_started_at")
+  @@schema("public")
+}
+
+/// Commissions tracking
+model commissions {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  dealId      String?   @map("deal_id") @db.Uuid
+  userId      String?   @map("user_id") @db.Uuid
+  brokerName  String?   @map("broker_name")
+  dealTitle   String?   @map("deal_title")
+  amount      Decimal   @db.Decimal(15, 2)
+  percentage  Decimal?  @db.Decimal(5, 2)
+  status      String?   @default("pending")
+  paymentDate DateTime? @map("payment_date") @db.Timestamptz(6)
+  notes       String?
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  
+  tenant      tenants       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deal        deals?        @relation(fields: [dealId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  user        public_users? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([tenantId], map: "idx_commissions_tenant")
+  @@index([dealId], map: "idx_commissions_deal")
+  @@index([userId], map: "idx_commissions_user")
+  @@index([status], map: "idx_commissions_status")
+  @@schema("public")
+}

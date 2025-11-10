@@ -38,11 +38,6 @@ const baseClient = new PrismaClient({
     db: {
       url: process.env.DATABASE_URL
     }
-  },
-  __internal: {
-    engine: {
-      connection_timeout: 10
-    }
   }
 });
 

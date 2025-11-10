@@ -58,6 +58,14 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'primezap-auth',
+      // Ensure isLoading is never persisted as true
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
+        // Always reset isLoading to false when hydrating from storage
+        isLoading: false,
+      }),
     }
   )
 );

@@ -247,9 +247,13 @@ app.use((req, res) => {
 // Initialize
 async function start() {
   try {
+    console.log('🚀 Iniciando servidor...');
     await connectDatabase();
+    console.log('👤 Verificando admin inicial...');
     await ensureInitialAdmin();
+    console.log('📡 Testando conexão Redis...');
     await redis.ping();
+    console.log('✅ Redis ping OK');
     initializeSocket(httpServer);
 
     httpServer.listen(env.PORT, () => {
@@ -258,6 +262,7 @@ async function start() {
       logger.info(`🌐 CORS enabled for: ${env.FRONTEND_ORIGIN}`);
     });
   } catch (error) {
+    console.error('❌ Erro ao iniciar servidor:', error);
     logger.error({ error }, 'Failed to start server');
     process.exit(1);
   }

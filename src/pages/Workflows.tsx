@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useWorkflows } from '@/hooks/useWorkflows';
 import {
   Workflow,
   Plus,
@@ -293,7 +294,8 @@ const mockWorkflows: WorkflowData[] = [
 ];
 
 const Workflows: React.FC = () => {
-  const [workflows, setWorkflows] = useState<WorkflowData[]>(mockWorkflows);
+  const { data: workflowsData, isLoading, refetch } = useWorkflows();
+  const workflows = workflowsData?.data || [];
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowData | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');

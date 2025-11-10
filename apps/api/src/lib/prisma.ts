@@ -84,8 +84,13 @@ prisma.$on('query', (e: any) => {
 });
 
 export async function connectDatabase() {
+  console.log('🔄 Tentando conectar ao banco de dados...');
+  console.log('DATABASE_URL:', process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':***@'));
   try {
+    console.log('🔌 Executando prisma.$connect()...');
     await prisma.$connect();
+    console.log('✅ prisma.$connect() completou');
+    console.log('✅ Database connected successfully');
     logger.info('✅ Database connected');
   } catch (error) {
     logger.error({ err: error }, '❌ Database connection failed');

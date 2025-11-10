@@ -177,11 +177,13 @@ function DealCard({
   onEdit,
   isSelected,
   onSelectChange,
+  preCadastroByLead = {},
 }: {
   deal: UIDeal;
   onEdit: (deal: UIDeal) => void;
   isSelected: boolean;
   onSelectChange: (id: string, selected: boolean) => void;
+  preCadastroByLead?: Record<string, string>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: deal.id,
@@ -654,6 +656,7 @@ function DealsPipeline() {
                             onEdit={setEditingDeal}
                             isSelected={selectedDeals.includes(deal.id)}
                             onSelectChange={handleSelectDeal}
+                            preCadastroByLead={preCadastroByLead}
                           />
                         ))}
                       </SortableContext>

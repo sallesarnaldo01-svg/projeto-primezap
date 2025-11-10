@@ -83,7 +83,7 @@ export default function Conversas() {
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return conversations.filter((c) => {
+    return (conversations || []).filter((c) => {
       const name = c.contact?.name?.toLowerCase() || '';
       const phone = c.contact?.phone || '';
       return !q || name.includes(q) || phone.includes(q);

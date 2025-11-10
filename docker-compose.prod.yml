@@ -1,8 +1,14 @@
 version: '3.8'
 
+# IPv4 workaround for Supabase
+x-supabase-hosts: &supabase-hosts
+  - "aws-1-sa-east-1.pooler.supabase.com:18.228.163.245"
+
+
 services:
   # Backend API
   api:
+    extra_hosts: *supabase-hosts
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -21,6 +27,7 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-https://primezap.primezapia.com}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
@@ -55,8 +62,7 @@ services:
     container_name: primezap-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://api:4000}
       - VITE_SUPABASE_URL=${SUPABASE_URL}
@@ -75,6 +81,32 @@ services:
       retries: 3
     labels:
       - "com.primezap.service=frontend"
+      - "com.primezap.version=1.0.0"
+
+  # Worker (Background Jobs)
+  worker:
+    extra_hosts: *supabase-hosts
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      target: production
+    container_name: primezap-worker
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - FRONTEND_ORIGIN=${FRONTEND_ORIGIN:-https://primezap.primezapia.com}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - redis
+    networks:
+      - primezap-network
+    labels:
+      - "com.primezap.service=worker"
       - "com.primezap.version=1.0.0"
 
   # Redis (Cache & Rate Limiting)
@@ -108,3 +140,4 @@ volumes:
     driver: local
     labels:
       - "com.primezap.volume=redis"
+

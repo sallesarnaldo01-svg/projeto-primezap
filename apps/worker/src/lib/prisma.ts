@@ -20,7 +20,7 @@ export async function connectDatabase() {
       logger.info('✅ Database connected');
     }
   } catch (error) {
-    logger.error({ error }, '❌ Database connection failed');
-    throw error;
+    logger.error({ error }, '❌ Database connection failed - will retry on first use');
+    // Don't throw - allow worker to start and retry connection on first query
   }
 }

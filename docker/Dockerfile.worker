@@ -1,31 +1,40 @@
-FROM node:20-alpine AS base
-RUN apk add --no-cache git python3 make g++ \
-    chromium nss freetype harfbuzz ca-certificates ttf-freefont \
-    && corepack enable && corepack prepare pnpm@latest --activate
-
-FROM base AS builder
+# Dockerfile para Worker - Solução Simplificada
+FROM node:20-alpine
 WORKDIR /app
-# Copia todo o repo (node_modules é ignorado via .dockerignore)
-COPY . .
-# Instala dependências do workspace
-RUN pnpm install --no-frozen-lockfile
-# Gera Prisma Client (scripts são ignorados por padrão pelo pnpm v10)
-RUN pnpm -r --filter "@primeflow/shared" run build
-RUN pnpm prisma generate
 
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
+# Instalar dependências do sistema
+RUN apk add --no-cache libc6-compat python3 make g++ git openssl
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/worker ./apps/worker
-COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/tsconfig.worker.json ./
-COPY --from=builder /app/apps/worker/tsconfig.json ./apps/worker/tsconfig.json
+# Instalar pnpm e tsx globalmente
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g tsx prisma
 
+# Copiar arquivos do projeto
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/worker ./apps/worker
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/api/prisma ./apps/api/prisma
+COPY .env ./
+
+# Instalar dependências
+RUN pnpm install --frozen-lockfile
+
+# Gerar Prisma Client
+RUN cd apps/api && prisma generate
+
+# Criar link simbólico para resolver conflito de versões do Prisma
+RUN PRISMA_GENERATED=$(find /app/node_modules/.pnpm -path '*/@prisma/client@6.19.0*/node_modules/.prisma/client' -print -quit) && \
+    PRISMA_TARGET=$(find /app/node_modules/.pnpm -path '*/@prisma/client@6.17.0*/node_modules/@prisma/client' -print -quit) && \
+    if [ -n "$PRISMA_GENERATED" ] && [ -n "$PRISMA_TARGET" ]; then \
+      mkdir -p "$(dirname "$PRISMA_TARGET")/.prisma" && \
+      ln -sf "$PRISMA_GENERATED" "$(dirname "$PRISMA_TARGET")/.prisma/client"; \
+    fi
+
+# Criar diretórios necessários
 RUN mkdir -p /app/uploads /app/.wwebjs_auth
 
-# Inicia o worker direto do código-fonte com tsx (transpile-only)
-CMD ["pnpm", "exec", "tsx", "apps/worker/src/index.ts"]
+# Variáveis de ambiente
+ENV NODE_ENV=production
+
+# Comando para executar o worker
+CMD ["tsx", "apps/worker/src/index.ts"]

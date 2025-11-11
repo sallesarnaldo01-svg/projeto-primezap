@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@primeflow/shared": "workspace:*",
-    "@prisma/client": "^6.17.0",
+    "@prisma/client": "^6.19.0",
     "bullmq": "^5.59.0",
     "ioredis": "^5.4.1",
     "pino": "^9.12.0",
